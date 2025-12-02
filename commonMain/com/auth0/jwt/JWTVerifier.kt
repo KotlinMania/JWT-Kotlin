@@ -246,9 +246,8 @@ class JWTVerifier internal constructor(
 
         @OptIn(ExperimentalTime::class)
         override fun build(): JWTVerifier {
-            return build(object : Clock {
-                override fun now(): Instant = KotlinClock.System.now()
-            })
+            // Use kotlin.time.Clock.System for current time source
+            return build(Clock.System)
         }
 
         fun build(clock: Clock): JWTVerifier {
