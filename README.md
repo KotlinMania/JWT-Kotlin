@@ -54,6 +54,54 @@ includeBuild("../JWT-Kotlin")
 ```
 1) Then depend on the included build’s project where appropriate. If you keep the default project name, you can also re-map it using dependency substitution in `settings.gradle.kts`.
 
+Option C — Use Maven via Git (JitPack)
+If you prefer to consume this repository directly from Git without submodules/composite builds, you can use JitPack. JitPack builds the project from the GitHub URL and serves artifacts from a Maven repository.
+
+Gradle (Kotlin DSL):
+1) Add JitPack to your repositories (usually in `settings.gradle.kts` under `dependencyResolutionManagement`):
+```kotlin
+dependencyResolutionManagement {
+    repositories {
+        mavenCentral()
+        maven(url = "https://jitpack.io")
+    }
+}
+```
+2) Add the dependency using the GitHub coordinates. Replace `<tag-or-commit>` with a release tag (recommended) or a commit SHA:
+```kotlin
+dependencies {
+    implementation("com.github.KotlinMania:JWT-Kotlin:<tag-or-commit>")
+}
+```
+
+Maven (pom.xml):
+```xml
+<repositories>
+  <repository>
+    <id>jitpack.io</id>
+    <url>https://jitpack.io</url>
+  </repository>
+  <repository>
+    <id>central</id>
+    <url>https://repo1.maven.org/maven2/</url>
+  </repository>
+  <!-- Add any other repositories you use -->
+  
+</repositories>
+
+<dependencies>
+  <dependency>
+    <groupId>com.github.KotlinMania</groupId>
+    <artifactId>JWT-Kotlin</artifactId>
+    <version>&lt;tag-or-commit&gt;</version>
+  </dependency>
+</dependencies>
+```
+
+Notes:
+- Use a Git tag (for example, `v0.1.0`) or a specific commit SHA to ensure reproducible builds.
+- JitPack reads the Gradle build in this repo and publishes the multiplatform artifacts on demand. The URL for the Git repo is: https://github.com/KotlinMania/JWT-Kotlin.git
+
 Supported algorithms
 --------------------
 
