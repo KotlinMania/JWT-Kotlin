@@ -14,20 +14,8 @@ kotlin {
         languageSettings.optIn("kotlin.time.ExperimentalTime")
     }
 
-    macosArm64 {
-        binaries {
-            executable {
-                entryPoint = "io.github.kotlinmania.jwt.main"
-            }
-        }
-    }
-    macosX64 {
-        binaries {
-            executable {
-                entryPoint = "io.github.kotlinmania.jwt.main"
-            }
-        }
-    }
+    macosArm64()
+    macosX64()
     linuxX64()
     mingwX64()
 
