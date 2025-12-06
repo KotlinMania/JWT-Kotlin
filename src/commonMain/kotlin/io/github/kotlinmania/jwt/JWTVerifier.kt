@@ -10,6 +10,7 @@ import io.github.kotlinmania.jwt.interfaces.DecodedJWT
 import io.github.kotlinmania.jwt.interfaces.Verification
 import io.github.kotlinmania.jwt.algorithms.Algorithm
 import io.github.kotlinmania.jwt.impl.ExpectedCheckHolder
+import io.github.kotlinmania.jwt.impl.JWTParser
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime

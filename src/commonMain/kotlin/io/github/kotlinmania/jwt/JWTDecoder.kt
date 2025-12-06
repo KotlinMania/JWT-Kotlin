@@ -5,7 +5,6 @@ package io.github.kotlinmania.jwt
 import io.github.kotlinmania.jwt.TokenUtils
 import io.github.kotlinmania.jwt.interfaces.DecodedJWT
 import io.github.kotlinmania.jwt.interfaces.Claim
-import io.github.kotlinmania.jwt.interfaces.DecodedJWT
 import io.github.kotlinmania.jwt.exceptions.JWTDecodeException
 import io.github.kotlinmania.jwt.impl.JWTParser
 import okio.ByteString.Companion.decodeBase64

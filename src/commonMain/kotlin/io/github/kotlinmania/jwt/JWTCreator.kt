@@ -444,5 +444,5 @@ class JWTCreator private constructor(
     }
 }
 
-// Helper extension for ByteString to match Okio API if needed, or just use direct methods
-private fun okio.ByteString.toByteString() = this
+// Helper extension for ByteArray to convert to ByteString
+private fun ByteArray.toByteString() = okio.ByteString.of(*this)
