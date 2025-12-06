@@ -17,14 +17,14 @@ kotlin {
     macosArm64 {
         binaries {
             executable {
-                entryPoint = "com.auth0.jwt.main"
+                entryPoint = "io.github.kotlinmania.jwt.main"
             }
         }
     }
     macosX64 {
         binaries {
             executable {
-                entryPoint = "com.auth0.jwt.main"
+                entryPoint = "io.github.kotlinmania.jwt.main"
             }
         }
     }
