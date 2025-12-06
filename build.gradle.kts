@@ -1,7 +1,11 @@
 plugins {
     kotlin("multiplatform") version "2.2.21"
     kotlin("plugin.serialization") version "2.2.21"
+    id("com.vanniktech.maven.publish") version "0.30.0"
 }
+
+group = "io.github.kotlinmania"
+version = "0.1.0"
 
 kotlin {
     applyDefaultHierarchyTemplate()
@@ -61,4 +65,41 @@ kotlin {
         }
     }
     jvmToolchain(21)
+}
+
+mavenPublishing {
+    publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL)
+    signAllPublications()
+
+    coordinates(group.toString(), "jwt-kotlin", version.toString())
+
+    pom {
+        name.set("jwt-kotlin")
+        description.set("Kotlin Multiplatform JWT (JSON Web Token) library")
+        inceptionYear.set("2024")
+        url.set("https://github.com/KotlinMania/JWT-Kotlin")
+
+        licenses {
+            license {
+                name.set("MIT")
+                url.set("https://opensource.org/licenses/MIT")
+                distribution.set("repo")
+            }
+        }
+
+        developers {
+            developer {
+                id.set("sydneyrenee")
+                name.set("Sydney Renee")
+                email.set("sydney@solace.ofharmony.ai")
+                url.set("https://github.com/sydneyrenee")
+            }
+        }
+
+        scm {
+            url.set("https://github.com/KotlinMania/JWT-Kotlin")
+            connection.set("scm:git:git://github.com/KotlinMania/JWT-Kotlin.git")
+            developerConnection.set("scm:git:ssh://github.com/KotlinMania/JWT-Kotlin.git")
+        }
+    }
 }
