@@ -14,10 +14,34 @@ kotlin {
         languageSettings.optIn("kotlin.time.ExperimentalTime")
     }
 
-    macosArm64()
-    macosX64()
-    linuxX64()
-    mingwX64()
+    macosArm64 {
+        // Library configuration - no executable binaries
+        binaries {
+            sharedLib()
+            staticLib()
+        }
+    }
+    macosX64 {
+        // Library configuration - no executable binaries
+        binaries {
+            sharedLib()
+            staticLib()
+        }
+    }
+    linuxX64 {
+        // Library configuration - no executable binaries
+        binaries {
+            sharedLib()
+            staticLib()
+        }
+    }
+    mingwX64 {
+        // Library configuration - no executable binaries
+        binaries {
+            sharedLib()
+            staticLib()
+        }
+    }
 
     sourceSets {
         val commonMain by getting {
