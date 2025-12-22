@@ -14,10 +14,19 @@ kotlin {
         languageSettings.optIn("kotlin.time.ExperimentalTime")
     }
 
-    macosArm64()
-    macosX64()
-    linuxX64()
-    mingwX64()
+    // Configure native targets as library-only (no executables)
+    // This prevents "Could not find main function" errors since this is a library
+    val configureNativeTarget: org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget.() -> Unit = {
+        binaries {
+            sharedLib()
+            staticLib()
+        }
+    }
+    
+    macosArm64(configure = configureNativeTarget)
+    macosX64(configure = configureNativeTarget)
+    linuxX64(configure = configureNativeTarget)
+    mingwX64(configure = configureNativeTarget)
 
     sourceSets {
         val commonMain by getting {
