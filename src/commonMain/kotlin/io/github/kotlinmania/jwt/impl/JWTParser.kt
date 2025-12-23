@@ -23,32 +23,32 @@ class JWTParser : JWTPartsParser {
     }
 
     @Throws(JWTDecodeException::class)
-    override fun parsePayload(jsonString: String?): Payload {
-        if (jsonString == null) {
+    override fun parsePayload(json: String?): Payload {
+        if (json == null) {
             throw decodeException()
         }
 
         try {
-            val element = json.parseToJsonElement(jsonString)
-            if (element !is JsonObject) throw decodeException(jsonString)
+            val element = this@JWTParser.json.parseToJsonElement(json)
+            if (element !is JsonObject) throw decodeException(json)
             return PayloadImpl(element)
         } catch (e: Exception) {
-            throw decodeException(jsonString)
+            throw decodeException(json)
         }
     }
 
     @Throws(JWTDecodeException::class)
-    override fun parseHeader(jsonString: String?): Header {
-        if (jsonString == null) {
+    override fun parseHeader(json: String?): Header {
+        if (json == null) {
             throw decodeException()
         }
 
         try {
-            val element = json.parseToJsonElement(jsonString)
-            if (element !is JsonObject) throw decodeException(jsonString)
+            val element = this@JWTParser.json.parseToJsonElement(json)
+            if (element !is JsonObject) throw decodeException(json)
             return HeaderImpl(element)
         } catch (e: Exception) {
-            throw decodeException(jsonString)
+            throw decodeException(json)
         }
     }
 
@@ -106,16 +106,17 @@ internal class JsonClaim(private val element: JsonElement?) : Claim {
     override fun asString(): String? = element?.jsonPrimitive?.contentOrNull
     override fun asDate(): Instant? = element?.jsonPrimitive?.longOrNull?.let { Instant.fromEpochMilliseconds(it * 1000) }
 
+    @Suppress("UNCHECKED_CAST")
     override fun <T : Any> asList(clazz: KClass<T>): List<T>? {
         if (element !is JsonArray) return null
         // Simple mapping for basic types, more complex types would need reified/serializers
         return try {
             element.mapNotNull { 
                 when (clazz) {
-                    String::class -> it.jsonPrimitive.contentOrNull as T
-                    Int::class -> it.jsonPrimitive.intOrNull as T
-                    Long::class -> it.jsonPrimitive.longOrNull as T
-                    Boolean::class -> it.jsonPrimitive.booleanOrNull as T
+                    String::class -> it.jsonPrimitive.contentOrNull as T?
+                    Int::class -> it.jsonPrimitive.intOrNull as T?
+                    Long::class -> it.jsonPrimitive.longOrNull as T?
+                    Boolean::class -> it.jsonPrimitive.booleanOrNull as T?
                     else -> null // Fallback or error
                 }
             }

@@ -2,13 +2,13 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
-  build:
-    name: Build and Test
+  build-macos:
+    name: Build and Test (macOS / iOS)
     runs-on: macos-latest
 
     steps:
@@ -24,8 +24,45 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Build
-        run: ./gradlew build --no-configuration-cache
+      - name: Build and test
+        run: ./gradlew allTests assembleJWTKMPXCFramework --no-configuration-cache
 
-      - name: Run tests
+  build-linux:
+    name: Build and Test (Linux / Android / JS / WASM)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build and test
         run: ./gradlew allTests --no-configuration-cache
+
+  build-windows:
+    name: Build and Test (Windows)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build and test
+        run: ./gradlew mingwX64Test --no-configuration-cache
