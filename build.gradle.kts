@@ -1,3 +1,5 @@
+import com.vanniktech.maven.publish.SonatypeHost
+import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFramework
 
 plugins {
@@ -25,8 +27,8 @@ if (!licenseFile.exists()) {
         """.trimIndent()
     )
 }
-val localProperties = rootProject.file("local.properties")
-if (!localProperties.exists()) {
+val localProperties: File? = rootProject.file("local.properties")
+if (!localProperties?.exists()!!) {
     localProperties.writeText("sdk.dir=${sdkDir.absolutePath}")
 }
 
@@ -73,7 +75,7 @@ kotlin {
         browser()
         nodejs()
     }
-    @OptIn(org.jetbrains.kotlin.gradle.ExperimentalWasmDsl::class)
+    @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
         browser()
         nodejs()
@@ -161,7 +163,7 @@ kotlin {
 }
 
 mavenPublishing {
-    publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL)
+    publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
     signAllPublications()
 
     coordinates(group.toString(), "jwt-kmp", version.toString())

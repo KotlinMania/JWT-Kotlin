@@ -25,7 +25,7 @@ class JWTParser : JWTPartsParser {
     @Throws(JWTDecodeException::class)
     override fun parsePayload(json: String?): Payload {
         if (json == null) {
-            throw decodeException()
+            throw decodeException(null)
         }
 
         try {
@@ -33,14 +33,14 @@ class JWTParser : JWTPartsParser {
             if (element !is JsonObject) throw decodeException(json)
             return PayloadImpl(element)
         } catch (e: Exception) {
-            throw decodeException(json)
+            throw decodeException(json, e)
         }
     }
 
     @Throws(JWTDecodeException::class)
     override fun parseHeader(json: String?): Header {
         if (json == null) {
-            throw decodeException()
+            throw decodeException(null)
         }
 
         try {
@@ -48,7 +48,7 @@ class JWTParser : JWTPartsParser {
             if (element !is JsonObject) throw decodeException(json)
             return HeaderImpl(element)
         } catch (e: Exception) {
-            throw decodeException(json)
+            throw decodeException(json, e)
         }
     }
 
@@ -57,8 +57,8 @@ class JWTParser : JWTPartsParser {
             return decodeException(null)
         }
 
-        private fun decodeException(json: String?): JWTDecodeException {
-            return JWTDecodeException("The string '$json' doesn't have a valid JSON format.")
+        private fun decodeException(json: String?, cause: Throwable? = null): JWTDecodeException {
+            return JWTDecodeException("The string '$json' doesn't have a valid JSON format.", cause)
         }
     }
 }
@@ -109,7 +109,7 @@ internal class JsonClaim(private val element: JsonElement?) : Claim {
     @Suppress("UNCHECKED_CAST")
     override fun <T : Any> asList(clazz: KClass<T>): List<T>? {
         if (element !is JsonArray) return null
-        // Simple mapping for basic types, more complex types would need reified/serializers
+
         return try {
             element.mapNotNull { 
                 when (clazz) {
@@ -117,11 +117,11 @@ internal class JsonClaim(private val element: JsonElement?) : Claim {
                     Int::class -> it.jsonPrimitive.intOrNull as T?
                     Long::class -> it.jsonPrimitive.longOrNull as T?
                     Boolean::class -> it.jsonPrimitive.booleanOrNull as T?
-                    else -> null // Fallback or error
+                    else -> null
                 }
             }
         } catch (e: Exception) {
-            null
+            throw JWTDecodeException("Couldn't map the claim's array contents to ${clazz.simpleName}", e)
         }
     }
 
@@ -129,8 +129,12 @@ internal class JsonClaim(private val element: JsonElement?) : Claim {
         if (element !is JsonObject) return null
         // Recursive conversion not fully implemented for deep objects in this simple port
         // This is a simplification.
-        return element.mapValues { entry -> 
-            entry.value.jsonPrimitive.contentOrNull ?: entry.value.toString() 
+        return try {
+            element.mapValues { entry -> 
+                entry.value.jsonPrimitive.contentOrNull ?: entry.value.toString() 
+            }
+        } catch (e: Exception) {
+            throw JWTDecodeException("Couldn't map the claim's object contents to Map", e)
         }
     }
 

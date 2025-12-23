@@ -124,7 +124,7 @@ class JWTCreator private constructor(
                     }
                     return withHeader(map)
                 }
-                return this
+                throw IllegalArgumentException("The provided JSON is not a JSON object.")
             } catch (e: Exception) {
                 throw IllegalArgumentException("Invalid header JSON", e)
             }
