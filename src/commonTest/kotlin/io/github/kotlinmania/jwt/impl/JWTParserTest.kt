@@ -2,7 +2,6 @@ package io.github.kotlinmania.jwt.impl
 
 import io.github.kotlinmania.jwt.exceptions.JWTDecodeException
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 

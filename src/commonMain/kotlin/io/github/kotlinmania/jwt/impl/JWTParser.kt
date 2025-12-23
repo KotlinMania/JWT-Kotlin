@@ -53,11 +53,7 @@ class JWTParser : JWTPartsParser {
     }
 
     companion object {
-        private fun decodeException(): JWTDecodeException {
-            return decodeException(null)
-        }
-
-        private fun decodeException(json: String?, cause: Throwable? = null): JWTDecodeException {
+        private fun decodeException(json: String? = null, cause: Throwable? = null): JWTDecodeException {
             return JWTDecodeException("The string '$json' doesn't have a valid JSON format.", cause)
         }
     }
