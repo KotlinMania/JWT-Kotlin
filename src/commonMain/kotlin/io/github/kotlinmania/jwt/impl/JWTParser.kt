@@ -23,42 +23,38 @@ class JWTParser : JWTPartsParser {
     }
 
     @Throws(JWTDecodeException::class)
-    override fun parsePayload(jsonString: String?): Payload {
-        if (jsonString == null) {
-            throw decodeException()
+    override fun parsePayload(json: String?): Payload {
+        if (json == null) {
+            throw decodeException(null)
         }
 
         try {
-            val element = json.parseToJsonElement(jsonString)
-            if (element !is JsonObject) throw decodeException(jsonString)
+            val element = this@JWTParser.json.parseToJsonElement(json)
+            if (element !is JsonObject) throw decodeException(json)
             return PayloadImpl(element)
         } catch (e: Exception) {
-            throw decodeException(jsonString)
+            throw decodeException(json, e)
         }
     }
 
     @Throws(JWTDecodeException::class)
-    override fun parseHeader(jsonString: String?): Header {
-        if (jsonString == null) {
-            throw decodeException()
+    override fun parseHeader(json: String?): Header {
+        if (json == null) {
+            throw decodeException(null)
         }
 
         try {
-            val element = json.parseToJsonElement(jsonString)
-            if (element !is JsonObject) throw decodeException(jsonString)
+            val element = this@JWTParser.json.parseToJsonElement(json)
+            if (element !is JsonObject) throw decodeException(json)
             return HeaderImpl(element)
         } catch (e: Exception) {
-            throw decodeException(jsonString)
+            throw decodeException(json, e)
         }
     }
 
     companion object {
-        private fun decodeException(): JWTDecodeException {
-            return decodeException(null)
-        }
-
-        private fun decodeException(json: String?): JWTDecodeException {
-            return JWTDecodeException("The string '$json' doesn't have a valid JSON format.")
+        private fun decodeException(json: String? = null, cause: Throwable? = null): JWTDecodeException {
+            return JWTDecodeException("The string '$json' doesn't have a valid JSON format.", cause)
         }
     }
 }
@@ -106,21 +102,22 @@ internal class JsonClaim(private val element: JsonElement?) : Claim {
     override fun asString(): String? = element?.jsonPrimitive?.contentOrNull
     override fun asDate(): Instant? = element?.jsonPrimitive?.longOrNull?.let { Instant.fromEpochMilliseconds(it * 1000) }
 
+    @Suppress("UNCHECKED_CAST")
     override fun <T : Any> asList(clazz: KClass<T>): List<T>? {
         if (element !is JsonArray) return null
-        // Simple mapping for basic types, more complex types would need reified/serializers
+
         return try {
             element.mapNotNull { 
                 when (clazz) {
-                    String::class -> it.jsonPrimitive.contentOrNull as T
-                    Int::class -> it.jsonPrimitive.intOrNull as T
-                    Long::class -> it.jsonPrimitive.longOrNull as T
-                    Boolean::class -> it.jsonPrimitive.booleanOrNull as T
-                    else -> null // Fallback or error
+                    String::class -> it.jsonPrimitive.contentOrNull as T?
+                    Int::class -> it.jsonPrimitive.intOrNull as T?
+                    Long::class -> it.jsonPrimitive.longOrNull as T?
+                    Boolean::class -> it.jsonPrimitive.booleanOrNull as T?
+                    else -> null
                 }
             }
         } catch (e: Exception) {
-            null
+            throw JWTDecodeException("Couldn't map the claim's array contents to ${clazz.simpleName}", e)
         }
     }
 
@@ -128,8 +125,12 @@ internal class JsonClaim(private val element: JsonElement?) : Claim {
         if (element !is JsonObject) return null
         // Recursive conversion not fully implemented for deep objects in this simple port
         // This is a simplification.
-        return element.mapValues { entry -> 
-            entry.value.jsonPrimitive.contentOrNull ?: entry.value.toString() 
+        return try {
+            element.mapValues { entry -> 
+                entry.value.jsonPrimitive.contentOrNull ?: entry.value.toString() 
+            }
+        } catch (e: Exception) {
+            throw JWTDecodeException("Couldn't map the claim's object contents to Map", e)
         }
     }
 

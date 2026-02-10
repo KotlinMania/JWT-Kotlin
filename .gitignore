@@ -27,3 +27,15 @@ replay_pid*
 .kotlin/
 /build/
 .gradle/
+# Android SDK
+.android-sdk/
+local.properties
+
+*.hprof
+
+# IDEs
+.idea/
+*.iml
+
+# JS
+kotlin-js-store/
