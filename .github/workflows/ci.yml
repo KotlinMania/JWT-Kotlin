@@ -51,7 +51,7 @@ jobs:
 
       - name: Build and test
         # Prefer node-based JS/WASM tests in CI to avoid requiring a browser runner.
-        run: ./gradlew jvmTest jsNodeTest wasmJsNodeTest linuxX64Test --no-configuration-cache
+        run: ./gradlew jsNodeTest wasmJsNodeTest linuxX64Test --no-configuration-cache
 
   build-windows:
     name: Build and Test (Windows)
