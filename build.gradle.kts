@@ -12,7 +12,8 @@ plugins {
 
 group = "io.github.kotlinmania"
 
-version = "0.2.0"
+// NOTE: 0.2.0 was already released; bump to allow republish after CI fixes.
+version = "0.2.1"
 
 // Setup Android SDK location and licenses automatically
 val sdkDir = file(".android-sdk")
