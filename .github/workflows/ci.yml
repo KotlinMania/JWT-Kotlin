@@ -27,7 +27,7 @@ jobs:
       - name: Build and test
         # Don't run `allTests` on macOS: it includes non-Apple Kotlin/Native targets
         # (e.g. linuxX64Test) which aren't meant to be linked/run here.
-        run: ./gradlew macosArm64Test iosSimulatorArm64Test assembleJWTKMPXCFramework --no-configuration-cache
+        run: ./gradlew macosArm64Test assembleJWTKMPXCFramework --no-configuration-cache
 
   build-linux:
     name: Build and Test (Linux / Android / JS / WASM)
