@@ -230,3 +230,15 @@ License
 -------
 
 This project is licensed under the MIT license. See the [LICENSE](./LICENSE) file for more info.
+
+---
+
+Acknowledgments
+---------------
+
+This Kotlin Multiplatform port was created by **Sydney Renee** of [The Solace Project](mailto:sydney@solace.ofharmony.ai)
+for [KotlinMania](https://github.com/KotlinMania).
+
+Special thanks to the original authors:
+
+- [Auth0](https://github.com/auth0) for the original [java-jwt](https://github.com/auth0/java-jwt) library
