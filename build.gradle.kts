@@ -15,6 +15,12 @@ group = "io.github.kotlinmania"
 // NOTE: 0.2.0 was already released; bump to allow republish after CI fixes.
 version = "0.2.1"
 
+// fleeksoft publishes both `io` and `io-core`, but linking both causes duplicate symbols on Kotlin/Native.
+// `charset` depends on `io-core`, so forbid `io` globally to keep linuxX64Test linking clean.
+configurations.configureEach {
+    exclude(group = "com.fleeksoft.io", module = "io")
+}
+
 // Setup Android SDK location and licenses automatically
 val sdkDir = file(".android-sdk")
 val licensesDir = sdkDir.resolve("licenses")
@@ -103,11 +109,8 @@ kotlin {
                 implementation("com.squareup.okio:okio:3.9.1")
 
                 // Character encoding support (for legacy codepage conversion)
-                // fleeksoft-io provides JDK-like IO classes for Kotlin Multiplatform
-                implementation("com.fleeksoft.io:io-core:0.0.4")
-                implementation("com.fleeksoft.io:io:0.0.4")
-                implementation("com.fleeksoft.charset:charset:0.0.4")
-                implementation("com.fleeksoft.charset:charset-ext:0.0.4")
+                implementation("com.fleeksoft.charset:charset:0.0.5")
+                implementation("com.fleeksoft.charset:charset-ext:0.0.5")
             }
         }
 

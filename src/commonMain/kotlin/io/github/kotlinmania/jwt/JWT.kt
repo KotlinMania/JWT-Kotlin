@@ -12,7 +12,7 @@ import io.github.kotlinmania.jwt.interfaces.Verification
  */
 object JWT {
     private val decoder =
-        _root_ide_package_.io.github.kotlinmania.jwt.JWTDecoder(_root_ide_package_.io.github.kotlinmania.jwt.impl.JWTParser())
+        JWTDecoder(JWTParser())
 
     /**
      * Decode a given Json Web Token.
