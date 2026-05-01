@@ -165,10 +165,14 @@ kotlin {
 }
 
 kotlin {
-    androidLibrary {
+    android {
         namespace = "io.github.kotlinmania.jwt"
         compileSdk = 34
         minSdk = 24
+        withHostTestBuilder {}.configure {}
+        withDeviceTestBuilder {
+            sourceSetTreeName = "test"
+        }
     }
 }
 
