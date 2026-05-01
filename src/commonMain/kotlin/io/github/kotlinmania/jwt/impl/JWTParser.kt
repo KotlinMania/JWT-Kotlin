@@ -101,8 +101,6 @@ internal class JsonClaim(private val element: JsonElement?) : Claim {
     override fun asDouble(): Double? = element?.jsonPrimitive?.doubleOrNull
     override fun asString(): String? = element?.jsonPrimitive?.contentOrNull
     override fun asDate(): Instant? = element?.jsonPrimitive?.longOrNull?.let { Instant.fromEpochMilliseconds(it * 1000) }
-
-    @Suppress("UNCHECKED_CAST")
     override fun <T : Any> asList(clazz: KClass<T>): List<T>? {
         if (element !is JsonArray) return null
 
