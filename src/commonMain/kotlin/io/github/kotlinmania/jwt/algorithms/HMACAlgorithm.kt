@@ -41,9 +41,9 @@ internal class HMACAlgorithm(crypto: CryptoHelper, id: String, algorithm: String
     override fun verify(jwt: DecodedJWT?) {
         if (jwt == null) return
         try {
-            val signatureBytes = jwt.signature?.decodeBase64()?.toByteArray() ?: return
+            val signatureBytes = jwt.signature.decodeBase64()?.toByteArray() ?: return
             val valid = crypto.verifySignatureFor(
-                description, secret, jwt.header!!, jwt.payload!!, signatureBytes
+                description, secret, jwt.header, jwt.payload, signatureBytes
             )
             if (!valid) {
                 throw SignatureVerificationException(this)

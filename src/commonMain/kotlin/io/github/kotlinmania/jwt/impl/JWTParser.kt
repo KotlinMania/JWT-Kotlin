@@ -10,6 +10,7 @@ import io.github.kotlinmania.jwt.interfaces.Payload
 import kotlin.time.Instant
 import kotlinx.serialization.json.*
 import kotlin.reflect.KClass
+import kotlin.reflect.safeCast
 
 /**
  * This class helps in decoding the Header and Payload of the JWT using
@@ -105,14 +106,8 @@ internal class JsonClaim(private val element: JsonElement?) : Claim {
         if (element !is JsonArray) return null
 
         return try {
-            element.mapNotNull { 
-                when (clazz) {
-                    String::class -> it.jsonPrimitive.contentOrNull as T?
-                    Int::class -> it.jsonPrimitive.intOrNull as T?
-                    Long::class -> it.jsonPrimitive.longOrNull as T?
-                    Boolean::class -> it.jsonPrimitive.booleanOrNull as T?
-                    else -> null
-                }
+            element.mapNotNull {
+                clazz.safeCast(it.toClaimValue(clazz))
             }
         } catch (e: Exception) {
             throw JWTDecodeException("Couldn't map the claim's array contents to ${clazz.simpleName}", e)
@@ -121,16 +116,35 @@ internal class JsonClaim(private val element: JsonElement?) : Claim {
 
     override fun asMap(): Map<String, Any>? {
         if (element !is JsonObject) return null
-        // Recursive conversion not fully implemented for deep objects in this simple port
-        // This is a simplification.
         return try {
-            element.mapValues { entry -> 
-                entry.value.jsonPrimitive.contentOrNull ?: entry.value.toString() 
-            }
+            element.mapValues { entry -> entry.value.toClaimValue(Any::class) ?: JsonNull }
         } catch (e: Exception) {
             throw JWTDecodeException("Couldn't map the claim's object contents to Map", e)
         }
     }
 
     override fun isNull(): Boolean = element == null || element is JsonNull
+
+    private fun JsonElement.toClaimValue(clazz: KClass<*>): Any? =
+        when (clazz) {
+            String::class -> jsonPrimitive.contentOrNull
+            Int::class -> jsonPrimitive.intOrNull
+            Long::class -> jsonPrimitive.longOrNull
+            Double::class -> jsonPrimitive.doubleOrNull
+            Boolean::class -> jsonPrimitive.booleanOrNull
+            Any::class -> toAnyClaimValue()
+            else -> null
+        }
+
+    private fun JsonElement.toAnyClaimValue(): Any? =
+        when (this) {
+            is JsonNull -> null
+            is JsonPrimitive -> booleanOrNull
+                ?: intOrNull
+                ?: longOrNull
+                ?: doubleOrNull
+                ?: contentOrNull
+            is JsonArray -> mapNotNull { it.toAnyClaimValue() }
+            is JsonObject -> mapValues { entry -> entry.value.toAnyClaimValue() ?: JsonNull }
+        }
 }
