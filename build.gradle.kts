@@ -6,14 +6,14 @@ import org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeTest
 plugins {
     kotlin("multiplatform") version "2.3.20"
     kotlin("plugin.serialization") version "2.3.20"
-    id("com.android.kotlin.multiplatform.library") version "8.6.0"
+    id("com.android.kotlin.multiplatform.library") version "9.2.0"
     id("com.vanniktech.maven.publish") version "0.30.0"
 }
 
 group = "io.github.kotlinmania"
 
 // NOTE: 0.2.0 was already released; bump to allow republish after CI fixes.
-version = "0.2.1"
+version = "0.2.2"
 
 // fleeksoft publishes both `io` and `io-core`, but linking both causes duplicate symbols on Kotlin/Native.
 // `charset` depends on `io-core`, so forbid `io` globally to keep linuxX64Test linking clean.
@@ -43,6 +43,10 @@ if (!localProperties?.exists()!!) {
 
 kotlin {
     applyDefaultHierarchyTemplate()
+
+    compilerOptions {
+        allWarningsAsErrors.set(true)
+    }
 
     sourceSets.all { languageSettings.optIn("kotlin.time.ExperimentalTime") }
 
