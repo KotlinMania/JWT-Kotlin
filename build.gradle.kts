@@ -221,3 +221,21 @@ mavenPublishing {
         }
     }
 }
+
+// CodeQL's Gradle autobuild invokes `./gradlew testClasses`, which is a
+// JVM-convention task that Kotlin Multiplatform projects without a JVM
+// target do not provide. Without it, CodeQL aborts with
+// `Task 'testClasses' not found in root project` and skips the scan.
+// Register an aggregate task that depends on every per-target
+// test-compile task (jsTestClasses, wasmJsTestClasses, and the
+// compileTestKotlin<Target> tasks for native targets) so the convention
+// call resolves.
+tasks.register("testClasses") {
+    description = "Aggregate test-compile task for CodeQL and other JVM-convention callers."
+    group = "verification"
+    dependsOn(tasks.matching { other ->
+        val n = other.name
+        n != "testClasses" &&
+            (n.endsWith("TestClasses") || n.startsWith("compileTestKotlin"))
+    })
+}
