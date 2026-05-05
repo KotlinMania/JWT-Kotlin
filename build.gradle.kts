@@ -65,12 +65,6 @@ kotlin {
             xcf.add(this)
         }
     }
-    iosX64 {
-        binaries.framework {
-            baseName = "JWTKMP"
-            xcf.add(this)
-        }
-    }
     iosSimulatorArm64 {
         binaries.framework {
             baseName = "JWTKMP"
@@ -173,7 +167,7 @@ val enableIosSimulatorTests =
     providers.gradleProperty("enableIosSimulatorTests").map { it.toBoolean() }.orElse(false)
 
 tasks.withType<KotlinNativeTest>().configureEach {
-    if (!enableIosSimulatorTests.get() && (name == "iosX64Test" || name == "iosSimulatorArm64Test")) {
+    if (!enableIosSimulatorTests.get() && name == "iosSimulatorArm64Test") {
         enabled = false
     }
 }
