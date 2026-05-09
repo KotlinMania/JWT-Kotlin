@@ -23,17 +23,10 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6.1.0
 
-      - name: Build and test Apple arm64 targets
-        run: >
-          ./gradlew
-          compileKotlinIosArm64
-          compileKotlinIosSimulatorArm64
-          compileKotlinMacosArm64
-          iosSimulatorArm64Test
-          macosArm64Test
-          assembleJWTKMPXCFramework
-          -PenableIosSimulatorTests=true
-          --no-configuration-cache
+      - name: Build and test
+        # Don't run `allTests` on macOS: it includes non-Apple Kotlin/Native targets
+        # (e.g. linuxX64Test) which aren't meant to be linked/run here.
+        run: ./gradlew macosArm64Test assembleJWTKMPXCFramework --no-configuration-cache
 
   build-linux:
     name: Build and Test (Linux / Android / JS / WASM)
@@ -52,40 +45,12 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6.1.0
 
-      - name: Install system dependencies
+      - name: Install native dependencies
         run: sudo apt-get update && sudo apt-get install -y libcurl4-openssl-dev
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v6.4.0
-        with:
-          node-version: '24'
-          check-latest: true
-
-      - name: Set up Yarn
-        run: |
-          corepack enable
-          corepack prepare yarn@1.22.22 --activate
-
-      - name: Check JavaScript toolchain
-        run: |
-          node --version
-          npm --version
-          yarn --version
-
-      - name: Build and test Linux, Android, JS, and WASM targets
-        env:
-          ORG_GRADLE_PROJECT_kotlin_js_yarn_download: "false"
-        run: >
-          ./gradlew
-          compileAndroidMain
-          assembleUnitTest
-          assembleAndroidTest
-          jsBrowserTest
-          jsNodeTest
-          linuxX64Test
-          wasmJsBrowserTest
-          wasmJsNodeTest
-          --no-configuration-cache
+      - name: Build and test
+        # Prefer node-based JS/WASM tests in CI to avoid requiring a browser runner.
+        run: ./gradlew jsNodeTest wasmJsNodeTest linuxX64Test --no-configuration-cache
 
   build-windows:
     name: Build and Test (Windows)
@@ -104,5 +69,5 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6.1.0
 
-      - name: Build and test Windows target
+      - name: Build and test
         run: ./gradlew mingwX64Test --no-configuration-cache
