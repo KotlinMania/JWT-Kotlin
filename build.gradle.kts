@@ -148,7 +148,6 @@ kotlin {
 
         val commonTest by getting { dependencies { implementation(kotlin("test")) } }
     }
-    jvmToolchain(21)
 }
 
 kotlin {
@@ -160,15 +159,6 @@ kotlin {
         withDeviceTestBuilder {
             sourceSetTreeName = "test"
         }
-    }
-}
-
-val enableIosSimulatorTests =
-    providers.gradleProperty("enableIosSimulatorTests").map { it.toBoolean() }.orElse(false)
-
-tasks.withType<KotlinNativeTest>().configureEach {
-    if (!enableIosSimulatorTests.get() && name == "iosSimulatorArm64Test") {
-        enabled = false
     }
 }
 
