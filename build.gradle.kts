@@ -1,4 +1,3 @@
-import com.vanniktech.maven.publish.SonatypeHost
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFramework
 import org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeTest
@@ -58,21 +57,9 @@ kotlin {
             xcf.add(this)
         }
     }
-    macosX64 {
-        binaries.framework {
-            baseName = "JWTKMP"
-            xcf.add(this)
-        }
-    }
     linuxX64()
     mingwX64()
     iosArm64 {
-        binaries.framework {
-            baseName = "JWTKMP"
-            xcf.add(this)
-        }
-    }
-    iosX64 {
         binaries.framework {
             baseName = "JWTKMP"
             xcf.add(this)
@@ -98,9 +85,9 @@ kotlin {
         val commonMain by getting {
             dependencies {
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
-                implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.8.0")
-                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0")
-                implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1")
+                implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.11.0")
+                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
+                implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.7.1")
                 implementation("org.jetbrains.kotlinx:kotlinx-io-core:0.5.4")
 
                 // Ktor HTTP client for multiplatform
@@ -161,7 +148,6 @@ kotlin {
 
         val commonTest by getting { dependencies { implementation(kotlin("test")) } }
     }
-    jvmToolchain(21)
 }
 
 kotlin {
@@ -186,7 +172,7 @@ tasks.withType<KotlinNativeTest>().configureEach {
 }
 
 mavenPublishing {
-    publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
+    publishToMavenCentral()
     signAllPublications()
 
     coordinates(group.toString(), "jwt-kmp", version.toString())
@@ -220,4 +206,22 @@ mavenPublishing {
             developerConnection.set("scm:git:ssh://github.com/KotlinMania/JWT-Kotlin.git")
         }
     }
+}
+
+// CodeQL's Gradle autobuild invokes `./gradlew testClasses`, which is a
+// JVM-convention task that Kotlin Multiplatform projects without a JVM
+// target do not provide. Without it, CodeQL aborts with
+// `Task 'testClasses' not found in root project` and skips the scan.
+// Register an aggregate task that depends on every per-target
+// test-compile task (jsTestClasses, wasmJsTestClasses, and the
+// compileTestKotlin<Target> tasks for native targets) so the convention
+// call resolves.
+tasks.register("testClasses") {
+    description = "Aggregate test-compile task for CodeQL and other JVM-convention callers."
+    group = "verification"
+    dependsOn(tasks.matching { other ->
+        val n = other.name
+        n != "testClasses" &&
+            (n.endsWith("TestClasses") || n.startsWith("compileTestKotlin"))
+    })
 }
