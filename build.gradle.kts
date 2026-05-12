@@ -1,4 +1,3 @@
-import com.vanniktech.maven.publish.SonatypeHost
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFramework
 import org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeTest
@@ -21,26 +20,6 @@ configurations.configureEach {
     exclude(group = "com.fleeksoft.io", module = "io")
 }
 
-// Setup Android SDK location and licenses automatically
-val sdkDir = file(".android-sdk")
-val licensesDir = sdkDir.resolve("licenses")
-if (!licensesDir.exists()) licensesDir.mkdirs()
-val licenseFile = licensesDir.resolve("android-sdk-license")
-if (!licenseFile.exists()) {
-    licenseFile.writeText(
-        """
-        8933bad161af4178b1185d1a37fbf41ea5269c55
-        d56f5187479451eabf01fb74abc367c344559d7b
-        24333f8a63b6825ea9c5514f83c2829b004d1fee
-        """.trimIndent()
-    )
-}
-val localProperties: File? = rootProject.file("local.properties")
-if (!localProperties?.exists()!!) {
-    val sdkDirPropertyValue = sdkDir.absolutePath.replace("\\", "/")
-    localProperties.writeText("sdk.dir=$sdkDirPropertyValue")
-}
-
 kotlin {
     applyDefaultHierarchyTemplate()
 
@@ -58,21 +37,9 @@ kotlin {
             xcf.add(this)
         }
     }
-    macosX64 {
-        binaries.framework {
-            baseName = "JWTKMP"
-            xcf.add(this)
-        }
-    }
     linuxX64()
     mingwX64()
     iosArm64 {
-        binaries.framework {
-            baseName = "JWTKMP"
-            xcf.add(this)
-        }
-    }
-    iosX64 {
         binaries.framework {
             baseName = "JWTKMP"
             xcf.add(this)
@@ -98,9 +65,9 @@ kotlin {
         val commonMain by getting {
             dependencies {
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
-                implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.8.0")
-                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0")
-                implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1")
+                implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.11.0")
+                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
+                implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.7.1")
                 implementation("org.jetbrains.kotlinx:kotlinx-io-core:0.5.4")
 
                 // Ktor HTTP client for multiplatform
@@ -161,7 +128,6 @@ kotlin {
 
         val commonTest by getting { dependencies { implementation(kotlin("test")) } }
     }
-    jvmToolchain(21)
 }
 
 kotlin {
@@ -180,13 +146,13 @@ val enableIosSimulatorTests =
     providers.gradleProperty("enableIosSimulatorTests").map { it.toBoolean() }.orElse(false)
 
 tasks.withType<KotlinNativeTest>().configureEach {
-    if (!enableIosSimulatorTests.get() && (name == "iosX64Test" || name == "iosSimulatorArm64Test")) {
+    if (enableIosSimulatorTests.get() == false && name == "iosSimulatorArm64Test") {
         enabled = false
     }
 }
 
 mavenPublishing {
-    publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
+    publishToMavenCentral()
     signAllPublications()
 
     coordinates(group.toString(), "jwt-kmp", version.toString())
@@ -220,4 +186,22 @@ mavenPublishing {
             developerConnection.set("scm:git:ssh://github.com/KotlinMania/JWT-Kotlin.git")
         }
     }
+}
+
+// CodeQL's Gradle autobuild invokes `./gradlew testClasses`, which is a
+// JVM-convention task that Kotlin Multiplatform projects without a JVM
+// target do not provide. Without it, CodeQL aborts with
+// `Task 'testClasses' not found in root project` and skips the scan.
+// Register an aggregate task that depends on every per-target
+// test-compile task (jsTestClasses, wasmJsTestClasses, and the
+// compileTestKotlin<Target> tasks for native targets) so the convention
+// call resolves.
+tasks.register("testClasses") {
+    description = "Aggregate test-compile task for CodeQL and other JVM-convention callers."
+    group = "verification"
+    dependsOn(tasks.matching { other ->
+        val n = other.name
+        n != "testClasses" &&
+            (n.endsWith("TestClasses") || n.startsWith("compileTestKotlin"))
+    })
 }
