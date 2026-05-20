@@ -1,10 +1,11 @@
 name: CI
 
+# Manual-only trigger. GitHub Actions on this repo runs only when Sydney
+# explicitly dispatches it (Actions tab → CI → "Run workflow"). The old
+# `push: [main]` + `pull_request: [main]` triggers fired a full CI matrix
+# on every commit, which is the wrong cost shape for this workspace.
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+  workflow_dispatch:
 
 jobs:
   build-macos-arm64:
