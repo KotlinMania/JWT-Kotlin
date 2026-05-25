@@ -77,31 +77,9 @@ kotlin {
 Other Installation Options
 --------------------------
 
-If you prefer to use it as a source dependency or via JitPack:
+If you need to consume an unreleased commit, use JitPack rather than vendoring this repository into another project.
 
-Option A — Subproject include
-1) Add this repository as a Git submodule (or copy it into your repo), e.g. under `external/JWT-Kotlin`.
-2) In your root `settings.gradle.kts`:
-```kotlin
-include(":external:JWT-Kotlin")
-project(":external:JWT-Kotlin").projectDir = file("external/JWT-Kotlin")
-```
-3) In your module `build.gradle.kts`:
-```kotlin
-dependencies {
-    implementation(project(":external:JWT-Kotlin"))
-}
-```
-
-Option B — Composite build
-1) Place/clone the repo next to your project.
-2) In your root `settings.gradle.kts`:
-```kotlin
-includeBuild("../JWT-Kotlin")
-```
-1) Then depend on the included build’s project where appropriate. If you keep the default project name, you can also re-map it using dependency substitution in `settings.gradle.kts`.
-
-Option C — Use Maven via Git (JitPack)
+Use Maven via Git (JitPack)
 If you prefer to consume this repository directly from Git without submodules/composite builds, you can use JitPack. JitPack builds the project from the GitHub URL and serves artifacts from a Maven repository.
 
 **Note: This is intended for Kotlin projects only.**
