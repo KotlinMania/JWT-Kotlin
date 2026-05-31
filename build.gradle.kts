@@ -1,39 +1,31 @@
-import com.vanniktech.maven.publish.SonatypeHost
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFramework
+import org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeTest
 
 plugins {
-    kotlin("multiplatform") version "2.3.0"
-    kotlin("plugin.serialization") version "2.3.0"
-    id("com.android.kotlin.multiplatform.library") version "8.6.0"
+    kotlin("multiplatform") version "2.3.20"
+    kotlin("plugin.serialization") version "2.3.20"
+    id("com.android.kotlin.multiplatform.library") version "9.2.0"
     id("com.vanniktech.maven.publish") version "0.30.0"
 }
 
 group = "io.github.kotlinmania"
 
-version = "0.2.0"
+// NOTE: 0.2.0 was already released; bump to allow republish after CI fixes.
+version = "0.2.2"
 
-// Setup Android SDK location and licenses automatically
-val sdkDir = file(".android-sdk")
-val licensesDir = sdkDir.resolve("licenses")
-if (!licensesDir.exists()) licensesDir.mkdirs()
-val licenseFile = licensesDir.resolve("android-sdk-license")
-if (!licenseFile.exists()) {
-    licenseFile.writeText(
-        """
-        8933bad161af4178b1185d1a37fbf41ea5269c55
-        d56f5187479451eabf01fb74abc367c344559d7b
-        24333f8a63b6825ea9c5514f83c2829b004d1fee
-        """.trimIndent()
-    )
-}
-val localProperties: File? = rootProject.file("local.properties")
-if (!localProperties?.exists()!!) {
-    localProperties.writeText("sdk.dir=${sdkDir.absolutePath}")
+// fleeksoft publishes both `io` and `io-core`, but linking both causes duplicate symbols on Kotlin/Native.
+// `charset` depends on `io-core`, so forbid `io` globally to keep linuxX64Test linking clean.
+configurations.configureEach {
+    exclude(group = "com.fleeksoft.io", module = "io")
 }
 
 kotlin {
     applyDefaultHierarchyTemplate()
+
+    compilerOptions {
+        allWarningsAsErrors.set(true)
+    }
 
     sourceSets.all { languageSettings.optIn("kotlin.time.ExperimentalTime") }
 
@@ -45,21 +37,9 @@ kotlin {
             xcf.add(this)
         }
     }
-    macosX64 {
-        binaries.framework {
-            baseName = "JWTKMP"
-            xcf.add(this)
-        }
-    }
     linuxX64()
     mingwX64()
     iosArm64 {
-        binaries.framework {
-            baseName = "JWTKMP"
-            xcf.add(this)
-        }
-    }
-    iosX64 {
         binaries.framework {
             baseName = "JWTKMP"
             xcf.add(this)
@@ -84,10 +64,10 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
-                implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.7.3")
-                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
-                implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1")
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
+                implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.11.0")
+                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
+                implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.7.1")
                 implementation("org.jetbrains.kotlinx:kotlinx-io-core:0.5.4")
 
                 // Ktor HTTP client for multiplatform
@@ -100,11 +80,8 @@ kotlin {
                 implementation("com.squareup.okio:okio:3.9.1")
 
                 // Character encoding support (for legacy codepage conversion)
-                // fleeksoft-io provides JDK-like IO classes for Kotlin Multiplatform
-                implementation("com.fleeksoft.io:io-core:0.0.4")
-                implementation("com.fleeksoft.io:io:0.0.4")
-                implementation("com.fleeksoft.charset:charset:0.0.4")
-                implementation("com.fleeksoft.charset:charset-ext:0.0.4")
+                implementation("com.fleeksoft.charset:charset:0.0.5")
+                implementation("com.fleeksoft.charset:charset-ext:0.0.5")
             }
         }
 
@@ -151,19 +128,31 @@ kotlin {
 
         val commonTest by getting { dependencies { implementation(kotlin("test")) } }
     }
-    jvmToolchain(21)
 }
 
 kotlin {
-    androidLibrary {
+    android {
         namespace = "io.github.kotlinmania.jwt"
         compileSdk = 34
         minSdk = 24
+        withHostTestBuilder {}.configure {}
+        withDeviceTestBuilder {
+            sourceSetTreeName = "test"
+        }
+    }
+}
+
+val enableIosSimulatorTests =
+    providers.gradleProperty("enableIosSimulatorTests").map { it.toBoolean() }.orElse(false)
+
+tasks.withType<KotlinNativeTest>().configureEach {
+    if (enableIosSimulatorTests.get() == false && name == "iosSimulatorArm64Test") {
+        enabled = false
     }
 }
 
 mavenPublishing {
-    publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
+    publishToMavenCentral()
     signAllPublications()
 
     coordinates(group.toString(), "jwt-kmp", version.toString())
@@ -197,4 +186,22 @@ mavenPublishing {
             developerConnection.set("scm:git:ssh://github.com/KotlinMania/JWT-Kotlin.git")
         }
     }
+}
+
+// CodeQL's Gradle autobuild invokes `./gradlew testClasses`, which is a
+// JVM-convention task that Kotlin Multiplatform projects without a JVM
+// target do not provide. Without it, CodeQL aborts with
+// `Task 'testClasses' not found in root project` and skips the scan.
+// Register an aggregate task that depends on every per-target
+// test-compile task (jsTestClasses, wasmJsTestClasses, and the
+// compileTestKotlin<Target> tasks for native targets) so the convention
+// call resolves.
+tasks.register("testClasses") {
+    description = "Aggregate test-compile task for CodeQL and other JVM-convention callers."
+    group = "verification"
+    dependsOn(tasks.matching { other ->
+        val n = other.name
+        n != "testClasses" &&
+            (n.endsWith("TestClasses") || n.startsWith("compileTestKotlin"))
+    })
 }
