@@ -4,10 +4,9 @@ pluginManagement {
         mavenCentral()
         gradlePluginPortal()
     }
-    plugins { kotlin("jvm") version "2.3.20" }
 }
 
-plugins { id("org.gradle.toolchains.foojay-resolver-convention") version "0.9.0" }
+plugins { id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0" }
 
 dependencyResolutionManagement {
     repositories {
@@ -16,4 +15,4 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "JWT-Kotlin"
+rootProject.name = "proc-macro-kotlin"

@@ -1,0 +1,45 @@
+name: Build (tvOS)
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and Test (tvOS)
+    runs-on: macos-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5.2.0
+        with:
+          distribution: zulu
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6.1.0
+
+      - name: Build and test tvOS targets
+        run: >
+          ./gradlew
+          compileKotlinTvosArm64
+          compileKotlinTvosSimulatorArm64
+          tvosSimulatorArm64Test
+          --no-configuration-cache
+
+      - name: Upload test reports (tvOS)
+        if: success() || failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-reports-tvos
+          path: |
+            build/reports/tests/
+            build/test-results/
+          retention-days: 7
+          if-no-files-found: warn

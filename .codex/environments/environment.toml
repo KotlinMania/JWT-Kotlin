@@ -1,0 +1,207 @@
+version = 1
+name = "proc-macro-kotlin"
+
+[setup]
+script = '''
+set -euo pipefail
+cd "$CODEX_WORKTREE_PATH"
+
+if [ -f ./gradlew ]; then
+  chmod +x ./gradlew
+  ./gradlew --no-daemon help --no-configuration-cache
+fi
+'''
+
+[cleanup]
+script = '''
+cd "$CODEX_WORKTREE_PATH" 2>/dev/null || exit 0
+
+[ -f ./gradlew ] && ./gradlew --stop || true
+'''
+
+[[actions]]
+name = "Full Build"
+icon = "tool"
+command = '''
+set -euo pipefail
+cd "$CODEX_WORKTREE_PATH"
+./gradlew --no-daemon build --no-configuration-cache
+'''
+
+[[actions]]
+name = "Linux CI"
+icon = "tool"
+command = '''
+set -euo pipefail
+cd "$CODEX_WORKTREE_PATH"
+./gradlew --no-daemon \
+  compileKotlinLinuxX64 \
+  compileKotlinLinuxArm64 \
+  linuxX64Test \
+  --no-configuration-cache
+'''
+
+[[actions]]
+name = "Windows CI"
+icon = "tool"
+command = '''
+set -euo pipefail
+cd "$CODEX_WORKTREE_PATH"
+./gradlew --no-daemon \
+  mingwX64Test \
+  --no-configuration-cache
+'''
+
+[[actions]]
+name = "macOS CI"
+icon = "tool"
+command = '''
+set -euo pipefail
+cd "$CODEX_WORKTREE_PATH"
+./gradlew --no-daemon \
+  compileKotlinMacosArm64 \
+  macosArm64Test \
+  --no-configuration-cache
+'''
+
+[[actions]]
+name = "Apple CI"
+icon = "tool"
+command = '''
+set -euo pipefail
+cd "$CODEX_WORKTREE_PATH"
+XCF_NAME=$(grep -E '^project\.frameworkName=' gradle.properties | head -1 | cut -d= -f2 | tr -d '[:space:]')
+if [ -z "$XCF_NAME" ]; then
+  echo "project.frameworkName is not set in gradle.properties" >&2
+  exit 1
+fi
+./gradlew --no-daemon \
+  compileKotlinIosArm64 \
+  compileKotlinIosSimulatorArm64 \
+  compileKotlinIosX64 \
+  iosSimulatorArm64Test \
+  "assemble${XCF_NAME}XCFramework" \
+  compileKotlinTvosArm64 \
+  compileKotlinTvosSimulatorArm64 \
+  tvosSimulatorArm64Test \
+  compileKotlinWatchosArm64 \
+  compileKotlinWatchosDeviceArm64 \
+  compileKotlinWatchosSimulatorArm64 \
+  watchosSimulatorArm64Test \
+  --no-configuration-cache
+'''
+
+[[actions]]
+name = "Android CI"
+icon = "tool"
+command = '''
+set -euo pipefail
+cd "$CODEX_WORKTREE_PATH"
+./gradlew --no-daemon \
+  setupAndroidSdk \
+  compileAndroidMain \
+  assembleUnitTest \
+  assembleAndroidTest \
+  testAndroidHostTest \
+  --no-configuration-cache
+'''
+
+[[actions]]
+name = "Android Native CI"
+icon = "tool"
+command = '''
+set -euo pipefail
+cd "$CODEX_WORKTREE_PATH"
+./gradlew --no-daemon \
+  compileKotlinAndroidNativeArm32 \
+  compileKotlinAndroidNativeArm64 \
+  compileKotlinAndroidNativeX86 \
+  compileKotlinAndroidNativeX64 \
+  --no-configuration-cache
+'''
+
+[[actions]]
+name = "JS CI"
+icon = "tool"
+command = '''
+set -euo pipefail
+cd "$CODEX_WORKTREE_PATH"
+corepack enable
+corepack prepare yarn@1.22.22 --activate
+node --version
+npm --version
+yarn --version
+ORG_GRADLE_PROJECT_kotlin_js_yarn_download=false ./gradlew --no-daemon \
+  jsBrowserTest \
+  jsNodeTest \
+  --no-configuration-cache
+'''
+
+[[actions]]
+name = "WASM CI"
+icon = "tool"
+command = '''
+set -euo pipefail
+cd "$CODEX_WORKTREE_PATH"
+corepack enable
+corepack prepare yarn@1.22.22 --activate
+node --version
+npm --version
+yarn --version
+ORG_GRADLE_PROJECT_kotlin_js_yarn_download=false ./gradlew --no-daemon \
+  wasmJsBrowserTest \
+  wasmJsNodeTest \
+  wasmWasiNodeTest \
+  --no-configuration-cache
+'''
+
+[[actions]]
+name = "Swift Export CI"
+icon = "tool"
+command = '''
+set -euo pipefail
+cd "$CODEX_WORKTREE_PATH"
+BUILT_PRODUCTS_DIR="$CODEX_WORKTREE_PATH/build/swift-test" \
+TARGET_BUILD_DIR="$CODEX_WORKTREE_PATH/build/swift-test" \
+SDK_NAME=macosx \
+CONFIGURATION=Debug \
+ARCHS=arm64 \
+FRAMEWORKS_FOLDER_PATH=Frameworks \
+MACOSX_DEPLOYMENT_TARGET=14.0 \
+DEPLOYMENT_TARGET_SETTING_NAME=MACOSX_DEPLOYMENT_TARGET \
+  ./gradlew --no-daemon embedSwiftExportForXcode --no-configuration-cache
+(cd swift-test-harness && swift test)
+'''
+
+[[actions]]
+name = "CodeQL JVM"
+icon = "tool"
+command = '''
+set -euo pipefail
+cd "$CODEX_WORKTREE_PATH"
+./gradlew --no-daemon codeqlCompileJvm -Pkotlinmania.codeql=true --no-configuration-cache
+'''
+
+[[actions]]
+name = "CodeQL Android"
+icon = "tool"
+command = '''
+set -euo pipefail
+cd "$CODEX_WORKTREE_PATH"
+./gradlew --no-daemon setupAndroidSdk compileAndroidMain -Pkotlinmania.codeql=true --no-configuration-cache
+'''
+
+[[actions]]
+name = "CodeQL JS Outputs"
+icon = "tool"
+command = '''
+set -euo pipefail
+cd "$CODEX_WORKTREE_PATH"
+corepack enable
+corepack prepare yarn@1.22.22 --activate
+ORG_GRADLE_PROJECT_kotlin_js_yarn_download=false ./gradlew --no-daemon \
+  compileKotlinJs \
+  compileKotlinWasmJs \
+  -Pkotlinmania.codeql=true \
+  --no-configuration-cache
+'''

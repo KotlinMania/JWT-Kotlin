@@ -1,0 +1,12 @@
+name: Generated JavaScript/TypeScript
+
+paths:
+  - build/js/packages
+  - build/wasm/packages
+  - build/compileSync/js
+  - build/compileSync/wasmJs
+  - build/compileSync/wasmWasi
+
+paths-ignore:
+  - build/**/node_modules
+  - tmp/**

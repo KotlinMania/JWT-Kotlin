@@ -1,0 +1,38 @@
+name: Build (Android Native)
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and Test (Android Native)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5.2.0
+        with:
+          distribution: zulu
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6.1.0
+
+      # The four androidNative* targets cross-compile on any host. Kotlin/Native
+      # test binaries are built by the full target gate; this workflow provides
+      # explicit compile coverage for every Android Native target.
+      - name: Compile Android Native targets
+        run: >
+          ./gradlew
+          compileKotlinAndroidNativeArm32
+          compileKotlinAndroidNativeArm64
+          compileKotlinAndroidNativeX86
+          compileKotlinAndroidNativeX64
+          --no-configuration-cache

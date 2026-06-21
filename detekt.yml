@@ -1,0 +1,105 @@
+# Detekt configuration for vendored antlr4-runtime port.
+# Relaxed from template defaults because this is a line-by-line port of
+# upstream Java code; many structural/style rules that make sense for
+# idiomatic Kotlin would create false positives here.
+
+build:
+  maxIssues: 100
+  excludeCorrectable: false
+
+config:
+  validation: true
+
+processors:
+  active: true
+
+potential-bugs:
+  active: true
+  EqualsWithHashCodeExist: { active: false }
+  ExplicitGarbageCollectionCall: { active: true }
+  LateinitUsage: { active: true }
+  NullCheckOnMutableProperty: { active: true }
+  UnreachableCode: { active: true }
+  WrongEqualsTypeParameter: { active: false }
+  UnsafeCallOnNullableType: { active: false }
+  UnnecessaryNotNullOperator: { active: false }
+  ImplicitDefaultLocale: { active: false }
+
+performance:
+  active: true
+
+style:
+  active: true
+  MagicNumber: { active: false }
+  NewLineAtEndOfFile: { active: true }
+  ReturnCount: { active: false }
+  UnusedImports: { active: true }
+  UnnecessaryInheritance: { active: true }
+  UtilityClassWithPublicConstructor: { active: true }
+  DestructuringDeclarationWithTooManyEntries: { active: true, maxDestructuringEntries: 3 }
+  ProtectedMemberInFinalClass: { active: false }
+  MaxLineLength: { active: false }
+  UseCheckOrError: { active: false }
+  UseRequire: { active: false }
+  ForbiddenComment: { active: false }
+  ThrowsCount: { active: false }
+  LoopWithTooManyJumpStatements: { active: false }
+  UnusedParameter: { active: false }
+  FunctionOnlyReturningConstant: { active: false }
+  WildcardImport: { active: false }
+  ModifierOrder: { active: false }
+  UnusedPrivateProperty: { active: false }
+  RedundantVisibilityModifierRule: { active: false }
+  UnnecessaryAbstractClass: { active: false }
+
+complexity:
+  active: true
+  LongMethod: { active: false }
+  LargeClass: { active: false }
+  CyclomaticComplexMethod: { active: false }
+  TooManyFunctions: { active: false }
+  NestedBlockDepth: { active: false }
+  LongParameterList: { active: false }
+  ComplexCondition: { active: false }
+
+empty-blocks:
+  active: true
+  EmptyClassBlock: { active: true }
+  EmptyDefaultConstructor: { active: true }
+  EmptyDoWhileBlock: { active: true }
+  EmptyElseBlock: { active: true }
+  EmptyFinallyBlock: { active: true }
+  EmptyForBlock: { active: true }
+  EmptyFunctionBlock: { active: false }
+  EmptyIfBlock: { active: false }
+  EmptyInitBlock: { active: true }
+  EmptyKtFile: { active: true }
+  EmptySecondaryConstructor: { active: true }
+  EmptyTryBlock: { active: true }
+  EmptyWhenBlock: { active: true }
+  EmptyWhileBlock: { active: true }
+
+naming:
+  active: true
+  TopLevelPropertyNaming: { active: false }
+  FunctionNaming: { active: false }
+  ClassNaming: { active: true }
+  EnumNaming: { active: true }
+  VariableNaming: { active: false }
+  ConstructorParameterNaming: { active: false }
+  FunctionParameterNaming: { active: false }
+  MatchingDeclarationName: { active: false }
+  ObjectPropertyNaming: { active: false }
+
+exceptions:
+  active: true
+  TooGenericExceptionThrown: { active: false }
+  TooGenericExceptionCaught: { active: false }
+  SwallowedException: { active: false }
+  InstanceOfCheckForException: { active: false }
+  ExceptionRaisedInUnexpectedLocation: { active: false }
+  ThrowingExceptionsWithoutMessageOrCause: { active: false }
+
+coroutines:
+  active: false
+

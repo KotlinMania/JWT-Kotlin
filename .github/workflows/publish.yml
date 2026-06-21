@@ -4,15 +4,29 @@ on:
   release:
     types: [released]
   workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish and release to Maven Central (requires secrets)"
+        type: boolean
+        required: false
+        default: false
+
+# Publishing targets Maven Central via Sonatype OSSRH using external secrets;
+# no GitHub-side write permissions are needed. Checkout only requires read.
+permissions:
+  contents: read
 
 jobs:
   publish:
     name: Publish to Maven Central
     runs-on: macos-latest
 
+    permissions:
+      contents: read
+
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v6
 
       - name: Set up JDK 21
         uses: actions/setup-java@v5.2.0
@@ -23,9 +37,35 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6.1.0
 
-      - name: Publish to Maven Central
-        run: ./gradlew publishAndReleaseToMavenCentral --no-configuration-cache
+      - name: Set up Node.js
+        uses: actions/setup-node@v6.4.0
+        with:
+          node-version: '24'
+          check-latest: true
+
+      - name: Set up Yarn
+        run: |
+          corepack enable
+          corepack prepare yarn@1.22.22 --activate
+
+      - name: Check JavaScript toolchain
+        run: |
+          node --version
+          npm --version
+          yarn --version
+
+      - name: Build (dry run)
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.publish }}
+        # Keep workflow_dispatch safe (no publishing), and keep runtime low by focusing on JVM/Android output.
         env:
+          ORG_GRADLE_PROJECT_kotlin_js_yarn_download: "false"
+        run: ./gradlew setupAndroidSdk compileAndroidMain androidSourcesJar --no-configuration-cache
+
+      - name: Publish to Maven Central
+        if: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
+        run: ./gradlew setupAndroidSdk publishAndReleaseToMavenCentral --no-configuration-cache
+        env:
+          ORG_GRADLE_PROJECT_kotlin_js_yarn_download: "false"
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.SIGNING_KEY_ID }}

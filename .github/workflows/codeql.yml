@@ -1,0 +1,42 @@
+name: "CodeQL Advanced"
+
+on:
+  schedule:
+    - cron: '44 16 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  actions:
+    uses: ./.github/workflows/codeql-actions.yml
+    permissions:
+      actions: read
+      contents: read
+      packages: read
+      security-events: write
+
+  java-kotlin:
+    uses: ./.github/workflows/codeql-java-kotlin.yml
+    permissions:
+      actions: read
+      contents: read
+      packages: read
+      security-events: write
+
+  android:
+    uses: ./.github/workflows/codeql-android.yml
+    permissions:
+      actions: read
+      contents: read
+      packages: read
+      security-events: write
+
+  javascript-typescript:
+    uses: ./.github/workflows/codeql-javascript-typescript.yml
+    permissions:
+      actions: read
+      contents: read
+      packages: read
+      security-events: write
