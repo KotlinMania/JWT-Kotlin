@@ -32,11 +32,3 @@ jobs:
       contents: read
       packages: read
       security-events: write
-
-  javascript-typescript:
-    uses: ./.github/workflows/codeql-javascript-typescript.yml
-    permissions:
-      actions: read
-      contents: read
-      packages: read
-      security-events: write
