@@ -34,7 +34,7 @@ jobs:
           java-version: '21'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6.1.0
+        uses: gradle/actions/setup-gradle@v6.2.0
 
       # NOTE: do NOT add a `maxim-lobanov/setup-xcode` step here.
       # KotlinMania's enterprise GitHub Actions policy does not whitelist
