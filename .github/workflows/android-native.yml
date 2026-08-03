@@ -23,7 +23,7 @@ jobs:
           java-version: '21'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6.1.0
+        uses: gradle/actions/setup-gradle@v6.2.0
 
       # The four androidNative* targets cross-compile on any host. Kotlin/Native
       # test binaries are built by the full target gate; this workflow provides
