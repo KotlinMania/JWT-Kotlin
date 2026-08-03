@@ -5,7 +5,7 @@ serialization = "1.11.0"
 datetime = "0.8.0"
 collectionsImmutable = "0.5.1"
 androidKmp = "9.3.1"
-vanniktech = "0.36.0"
+vanniktech = "0.37.0"
 detekt = "1.23.8"
 ktlint = "14.2.0"
 
