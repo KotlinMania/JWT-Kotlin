@@ -4,6 +4,7 @@ coroutines = "1.11.0"
 serialization = "1.11.0"
 datetime = "0.8.0"
 collectionsImmutable = "0.5.1"
+okio = "3.10.2"
 androidKmp = "9.3.1"
 vanniktech = "0.37.0"
 detekt = "1.23.8"
@@ -23,6 +24,7 @@ kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serializa
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "datetime" }
 collections-immutable = { module = "org.jetbrains.kotlinx:kotlinx-collections-immutable", version.ref = "collectionsImmutable" }
+okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
 
 [bundles]
 jwt-commonMain = [
@@ -31,4 +33,5 @@ jwt-commonMain = [
   "kotlinx-serialization-json",
   "kotlinx-datetime",
   "collections-immutable",
+  "okio",
 ]
