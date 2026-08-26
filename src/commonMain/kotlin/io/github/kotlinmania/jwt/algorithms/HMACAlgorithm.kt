@@ -43,7 +43,7 @@ internal class HMACAlgorithm(crypto: CryptoHelper, id: String, algorithm: String
         try {
             val signatureBytes = jwt.signature.decodeBase64()?.toByteArray() ?: return
             val valid = crypto.verifySignatureFor(
-                description, secret, jwt.header, jwt.payload, signatureBytes
+                algorithmDescription, secret, jwt.header, jwt.payload, signatureBytes
             )
             if (!valid) {
                 throw SignatureVerificationException(this)
@@ -56,7 +56,7 @@ internal class HMACAlgorithm(crypto: CryptoHelper, id: String, algorithm: String
     @Throws(SignatureGenerationException::class)
     override fun sign(headerBytes: ByteArray?, payloadBytes: ByteArray?): ByteArray {
         try {
-            return crypto.createSignatureFor(description, secret, headerBytes ?: ByteArray(0), payloadBytes ?: ByteArray(0))
+            return crypto.createSignatureFor(algorithmDescription, secret, headerBytes ?: ByteArray(0), payloadBytes ?: ByteArray(0))
         } catch (e: Exception) {
             throw SignatureGenerationException(this, e)
         }
@@ -65,7 +65,7 @@ internal class HMACAlgorithm(crypto: CryptoHelper, id: String, algorithm: String
     @Throws(SignatureGenerationException::class)
     override fun sign(contentBytes: ByteArray?): ByteArray {
         try {
-            return crypto.createSignatureFor(description, secret, contentBytes ?: ByteArray(0))
+            return crypto.createSignatureFor(algorithmDescription, secret, contentBytes ?: ByteArray(0))
         } catch (e: Exception) {
             throw SignatureGenerationException(this, e)
         }

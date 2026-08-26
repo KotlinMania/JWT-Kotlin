@@ -23,7 +23,7 @@ abstract class Algorithm(
      *
      * @return the algorithm description.
      */
-    val description: String
+    val algorithmDescription: String
 ) {
     open val signingKeyId: String?
         /**
@@ -35,7 +35,7 @@ abstract class Algorithm(
         get() = null
 
     override fun toString(): String {
-        return description
+        return algorithmDescription
     }
 
     /**

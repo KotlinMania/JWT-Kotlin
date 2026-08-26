@@ -344,7 +344,7 @@ class JWTVerifier internal constructor(
         private fun addCheck(name: String, predicate: (Claim, DecodedJWT) -> Boolean) {
             expectedChecks.add(constructExpectedCheck(name) { claim, jwt ->
                 if (claim.isNull()) {
-                    throw MissingClaimException(name)
+                    throw MissingClaimException.of(name)
                 }
                 predicate(claim, jwt)
             })
