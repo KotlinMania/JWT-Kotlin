@@ -2,32 +2,6 @@ name: CI
 
 on:
   workflow_dispatch:
-# Least-privilege default for any inline job in this file. The reusable
-# workflows invoked below declare their own permissions; this top-level
-# block only applies to direct jobs in ci.yml itself.
-permissions:
-  contents: read
-
-# Orchestrator workflow. Each platform's build/test lives in its own reusable
-# workflow (.github/workflows/<platform>.yml with `on: workflow_call:`) and is
-# invoked here as a single job. Each invocation surfaces as an independent
-# line in the Checks UI — "Build (WASM)" shows up by itself, not as a step
-# inside a larger combined job. Re-runs and pass/fail attribution happen at
-# the platform granularity.
-#
-# CodeQL workflows live in .github/workflows/codeql.yml and are NOT invoked
-# from here — they have their own trigger and run independently.
-#
-# Branch trigger is `main` only. The previous shape `[main, master]` would
-# fire CI on any branch literally named `master`, which is a workflow-content
-# trust escalation since GitHub Actions runs the workflow file from the
-# branch being pushed to.
-
-# Each `uses:` job below declares its own `permissions:` block. For a job
-# that calls a reusable workflow, the permissions value sets a CEILING on
-# what the called workflow can have — so `{}` (empty) would deny the
-# called workflow's own `contents: read` declaration and break checkout.
-# `contents: read` matches what each called workflow needs.
 jobs:
   ios:
     uses: ./.github/workflows/ios.yml
