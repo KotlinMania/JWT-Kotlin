@@ -466,7 +466,15 @@ kotlin {
     js {
         configureBenchmarkCompilation()
         browser()
-        nodejs()
+        nodejs {
+            testTask {
+                // Mocha's 2s default times out heavy conformance suites on a loaded host.
+                useMocha {
+                    timeout = "120s"
+                    nodeJsArgs += listOf("--max-old-space-size=4096")
+                }
+            }
+        }
     }
 
     // wasmJs is Stable as of Kotlin 2.2; @OptIn may be removable — verify before dropping on wasmWasi.
@@ -474,7 +482,13 @@ kotlin {
     wasmJs {
         configureBenchmarkCompilation()
         browser()
-        nodejs()
+        nodejs {
+            testTask {
+                useMocha {
+                    timeout = "120s"
+                }
+            }
+        }
     }
 
     @OptIn(ExperimentalWasmDsl::class)
