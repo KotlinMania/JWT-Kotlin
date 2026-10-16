@@ -812,16 +812,6 @@ kotlin {
     }
 
     sourceSets {
-        // Optional intermediate source sets. Each is wired only when the repo
-        // has the directory, so repos without them are unaffected.
-        if (file("src/jvmAndAndroidMain").exists()) {
-            val jvmAndAndroidMain =
-                create("jvmAndAndroidMain") {
-                    dependsOn(commonMain.get())
-                }
-            jvmMain.get().dependsOn(jvmAndAndroidMain)
-            androidMain.get().dependsOn(jvmAndAndroidMain)
-        }
         // posixMain: shared POSIX code for every native target except mingw.
         // Added as a source directory per target rather than a dependsOn edge,
         // which would switch off the default hierarchy template.
