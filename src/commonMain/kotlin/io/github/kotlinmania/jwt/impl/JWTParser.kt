@@ -7,21 +7,21 @@ import io.github.kotlinmania.jwt.interfaces.Claim
 import io.github.kotlinmania.jwt.interfaces.Header
 import io.github.kotlinmania.jwt.interfaces.JWTPartsParser
 import io.github.kotlinmania.jwt.interfaces.Payload
-import kotlin.time.Instant
 import kotlinx.serialization.json.*
 import kotlin.reflect.KClass
 import kotlin.reflect.safeCast
+import kotlin.time.Instant
 
 /**
  * This class helps in decoding the Header and Payload of the JWT using
  * kotlinx.serialization.
  */
 class JWTParser : JWTPartsParser {
-
-    private val json = Json { 
-        ignoreUnknownKeys = true 
-        isLenient = true
-    }
+    private val json =
+        Json {
+            ignoreUnknownKeys = true
+            isLenient = true
+        }
 
     @Throws(JWTDecodeException::class)
     override fun parsePayload(json: String?): Payload {
@@ -54,24 +54,24 @@ class JWTParser : JWTPartsParser {
     }
 
     companion object {
-        private fun decodeException(json: String? = null, cause: Throwable? = null): JWTDecodeException {
-            return JWTDecodeException("The string '$json' doesn't have a valid JSON format.", cause)
-        }
+        private fun decodeException(json: String? = null, cause: Throwable? = null): JWTDecodeException = JWTDecodeException("The string '$json' doesn't have a valid JSON format.", cause)
     }
 }
 
-internal class HeaderImpl(private val tree: JsonObject) : Header {
+internal class HeaderImpl(
+    private val tree: JsonObject,
+) : Header {
     override val algorithm: String? get() = tree["alg"]?.jsonPrimitive?.contentOrNull
     override val type: String? get() = tree["typ"]?.jsonPrimitive?.contentOrNull
     override val contentType: String? get() = tree["cty"]?.jsonPrimitive?.contentOrNull
     override val keyId: String? get() = tree["kid"]?.jsonPrimitive?.contentOrNull
 
-    override fun getHeaderClaim(name: String): Claim {
-        return JsonClaim(tree[name])
-    }
+    override fun getHeaderClaim(name: String): Claim = JsonClaim(tree[name])
 }
 
-internal class PayloadImpl(private val tree: JsonObject) : Payload {
+internal class PayloadImpl(
+    private val tree: JsonObject,
+) : Payload {
     override val issuer: String? get() = tree["iss"]?.jsonPrimitive?.contentOrNull
     override val subject: String? get() = tree["sub"]?.jsonPrimitive?.contentOrNull
     override val audience: List<String>? get() {
@@ -87,21 +87,27 @@ internal class PayloadImpl(private val tree: JsonObject) : Payload {
     override val issuedAt: Instant? get() = tree["iat"]?.jsonPrimitive?.longOrNull?.let { Instant.fromEpochMilliseconds(it * 1000) }
     override val id: String? get() = tree["jti"]?.jsonPrimitive?.contentOrNull
 
-    override fun getClaim(name: String): Claim {
-        return JsonClaim(tree[name])
-    }
+    override fun getClaim(name: String): Claim = JsonClaim(tree[name])
 
     override val claims: Map<String, Claim>
         get() = tree.mapValues { JsonClaim(it.value) }
 }
 
-internal class JsonClaim(private val element: JsonElement?) : Claim {
+internal class JsonClaim(
+    private val element: JsonElement?,
+) : Claim {
     override fun asBoolean(): Boolean? = element?.jsonPrimitive?.booleanOrNull
+
     override fun asInt(): Int? = element?.jsonPrimitive?.intOrNull
+
     override fun asLong(): Long? = element?.jsonPrimitive?.longOrNull
+
     override fun asDouble(): Double? = element?.jsonPrimitive?.doubleOrNull
+
     override fun asString(): String? = element?.jsonPrimitive?.contentOrNull
+
     override fun asDate(): Instant? = element?.jsonPrimitive?.longOrNull?.let { Instant.fromEpochMilliseconds(it * 1000) }
+
     override fun <T : Any> asList(clazz: KClass<T>): List<T>? {
         if (element !is JsonArray) return null
 
@@ -138,13 +144,24 @@ internal class JsonClaim(private val element: JsonElement?) : Claim {
 
     private fun JsonElement.toAnyClaimValue(): Any? =
         when (this) {
-            is JsonNull -> null
-            is JsonPrimitive -> booleanOrNull
-                ?: intOrNull
-                ?: longOrNull
-                ?: doubleOrNull
-                ?: contentOrNull
-            is JsonArray -> mapNotNull { it.toAnyClaimValue() }
-            is JsonObject -> mapValues { entry -> entry.value.toAnyClaimValue() ?: JsonNull }
+            is JsonNull -> {
+                null
+            }
+
+            is JsonPrimitive -> {
+                booleanOrNull
+                    ?: intOrNull
+                    ?: longOrNull
+                    ?: doubleOrNull
+                    ?: contentOrNull
+            }
+
+            is JsonArray -> {
+                mapNotNull { it.toAnyClaimValue() }
+            }
+
+            is JsonObject -> {
+                mapValues { entry -> entry.value.toAnyClaimValue() ?: JsonNull }
+            }
         }
 }

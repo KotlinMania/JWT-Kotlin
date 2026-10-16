@@ -17,9 +17,9 @@ internal object TokenUtils {
         }
 
         val parts = token.split(".")
-        
+
         if (parts.size != 3) {
-             throw JWTDecodeException("The token was expected to have 3 parts, but got ${parts.size}.")
+            throw JWTDecodeException("The token was expected to have 3 parts, but got ${parts.size}.")
         }
 
         return parts.toTypedArray()

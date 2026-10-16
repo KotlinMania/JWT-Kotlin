@@ -23,7 +23,7 @@ abstract class Algorithm(
      *
      * @return the algorithm description.
      */
-    val algorithmDescription: String
+    val algorithmDescription: String,
 ) {
     open val signingKeyId: String?
         /**
@@ -34,9 +34,7 @@ abstract class Algorithm(
          */
         get() = null
 
-    override fun toString(): String {
-        return algorithmDescription
-    }
+    override fun toString(): String = algorithmDescription
 
     /**
      * Verify the given token using this Algorithm instance.
@@ -94,9 +92,7 @@ abstract class Algorithm(
          * @return a valid HMAC256 Algorithm.
          * @throws IllegalArgumentException if the provided Secret is null.
          */
-        fun hmac256(secret: String): Algorithm {
-            return HMACAlgorithm("HS256", "HmacSHA256", secret)
-        }
+        fun hmac256(secret: String): Algorithm = HMACAlgorithm("HS256", "HmacSHA256", secret)
 
         /**
          * Creates a new Algorithm instance using HmacSHA256. Tokens specify this as "HS256".
@@ -106,9 +102,7 @@ abstract class Algorithm(
          * @return a valid HMAC256 Algorithm.
          * @throws IllegalArgumentException if the provided Secret is null.
          */
-        fun hmac256(secret: ByteArray): Algorithm {
-            return HMACAlgorithm("HS256", "HmacSHA256", secret)
-        }
+        fun hmac256(secret: ByteArray): Algorithm = HMACAlgorithm("HS256", "HmacSHA256", secret)
 
         /**
          * Creates a new Algorithm instance using HmacSHA384. Tokens specify this as "HS384".
@@ -118,9 +112,7 @@ abstract class Algorithm(
          * @return a valid HMAC384 Algorithm.
          * @throws IllegalArgumentException if the provided Secret is null.
          */
-        fun hmac384(secret: String): Algorithm {
-            return HMACAlgorithm("HS384", "HmacSHA384", secret)
-        }
+        fun hmac384(secret: String): Algorithm = HMACAlgorithm("HS384", "HmacSHA384", secret)
 
         /**
          * Creates a new Algorithm instance using HmacSHA384. Tokens specify this as "HS384".
@@ -130,9 +122,7 @@ abstract class Algorithm(
          * @return a valid HMAC384 Algorithm.
          * @throws IllegalArgumentException if the provided Secret is null.
          */
-        fun hmac384(secret: ByteArray): Algorithm {
-            return HMACAlgorithm("HS384", "HmacSHA384", secret)
-        }
+        fun hmac384(secret: ByteArray): Algorithm = HMACAlgorithm("HS384", "HmacSHA384", secret)
 
         /**
          * Creates a new Algorithm instance using HmacSHA512. Tokens specify this as "HS512".
@@ -142,9 +132,7 @@ abstract class Algorithm(
          * @return a valid HMAC512 Algorithm.
          * @throws IllegalArgumentException if the provided Secret is null.
          */
-        fun hmac512(secret: String): Algorithm {
-            return HMACAlgorithm("HS512", "HmacSHA512", secret)
-        }
+        fun hmac512(secret: String): Algorithm = HMACAlgorithm("HS512", "HmacSHA512", secret)
 
         /**
          * Creates a new Algorithm instance using HmacSHA512. Tokens specify this as "HS512".
@@ -154,13 +142,9 @@ abstract class Algorithm(
          * @return a valid HMAC512 Algorithm.
          * @throws IllegalArgumentException if the provided Secret is null.
          */
-        fun hmac512(secret: ByteArray): Algorithm {
-            return HMACAlgorithm("HS512", "HmacSHA512", secret)
-        }
+        fun hmac512(secret: ByteArray): Algorithm = HMACAlgorithm("HS512", "HmacSHA512", secret)
 
-        fun none(): Algorithm {
-            return NoneAlgorithm()
-        }
+        fun none(): Algorithm = NoneAlgorithm()
 
         // RSA and ECDSA are temporarily removed/stubbed until platform-specific implementations are added.
         // If you need these, please implement them using platform-specific crypto APIs.

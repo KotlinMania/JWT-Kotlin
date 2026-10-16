@@ -3,7 +3,9 @@ package io.github.kotlinmania.jwt.interfaces
 /**
  * Class that represents a Json Web Token that was decoded from it's string representation.
  */
-interface DecodedJWT : Payload, Header {
+interface DecodedJWT :
+    Payload,
+    Header {
     /**
      * Getter for the String Token used to create this JWT instance.
      *

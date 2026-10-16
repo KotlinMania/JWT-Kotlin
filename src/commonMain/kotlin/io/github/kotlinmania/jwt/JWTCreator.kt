@@ -5,9 +5,9 @@ package io.github.kotlinmania.jwt
 import io.github.kotlinmania.jwt.algorithms.Algorithm
 import io.github.kotlinmania.jwt.exceptions.JWTCreationException
 import io.github.kotlinmania.jwt.exceptions.SignatureGenerationException
-import kotlin.time.Instant
 import kotlinx.serialization.json.*
 import okio.ByteString.Companion.encodeUtf8
+import kotlin.time.Instant
 
 /**
  * The JWTCreator class holds the sign method to generate a complete JWT (with Signature)
@@ -19,7 +19,7 @@ import okio.ByteString.Companion.encodeUtf8
 class JWTCreator private constructor(
     private val algorithm: Algorithm,
     headerClaims: Map<String, Any?>?,
-    payloadClaims: Map<String, Any?>?
+    payloadClaims: Map<String, Any?>?,
 ) {
     private val headerJson: String
     private val payloadJson: String
@@ -41,14 +41,32 @@ class JWTCreator private constructor(
         return JsonObject(content)
     }
 
-    private fun toJsonElement(value: Any?): JsonElement {
-        return when (value) {
-            null -> JsonNull
-            is String -> JsonPrimitive(value)
-            is Number -> JsonPrimitive(value)
-            is Boolean -> JsonPrimitive(value)
-            is Instant -> JsonPrimitive(value.epochSeconds)
-            is List<*> -> JsonArray(value.map { toJsonElement(it) })
+    private fun toJsonElement(value: Any?): JsonElement =
+        when (value) {
+            null -> {
+                JsonNull
+            }
+
+            is String -> {
+                JsonPrimitive(value)
+            }
+
+            is Number -> {
+                JsonPrimitive(value)
+            }
+
+            is Boolean -> {
+                JsonPrimitive(value)
+            }
+
+            is Instant -> {
+                JsonPrimitive(value.epochSeconds)
+            }
+
+            is List<*> -> {
+                JsonArray(value.map { toJsonElement(it) })
+            }
+
             is Map<*, *> -> {
                 val map = mutableMapOf<String, JsonElement>()
                 for ((k, v) in value) {
@@ -58,10 +76,15 @@ class JWTCreator private constructor(
                 }
                 JsonObject(map)
             }
-            is Array<*> -> JsonArray(value.map { toJsonElement(it) })
-            else -> JsonPrimitive(value.toString())
+
+            is Array<*> -> {
+                JsonArray(value.map { toJsonElement(it) })
+            }
+
+            else -> {
+                JsonPrimitive(value.toString())
+            }
         }
-    }
 
     /**
      * The Builder class holds the Claims that defines the JWT to be created.
@@ -116,12 +139,13 @@ class JWTCreator private constructor(
                 val json = Json.parseToJsonElement(headerClaimsJson)
                 if (json is JsonObject) {
                     // Convert JsonObject to Map
-                    val map = json.mapValues { entry -> 
-                        when(val v = entry.value) {
-                            is JsonPrimitive -> v.contentOrNull
-                            else -> v.toString() // Simplification
+                    val map =
+                        json.mapValues { entry ->
+                            when (val v = entry.value) {
+                                is JsonPrimitive -> v.contentOrNull
+                                else -> v.toString() // Simplification
+                            }
                         }
-                    }
                     return withHeader(map)
                 }
                 throw IllegalArgumentException("The provided JSON is not a JSON object.")
@@ -335,7 +359,7 @@ class JWTCreator private constructor(
             addClaim(name, list)
             return this
         }
-        
+
         @Throws(IllegalArgumentException::class)
         fun withArrayClaim(name: String, items: Array<String>?): Builder {
             addClaim(name, items)
@@ -423,10 +447,11 @@ class JWTCreator private constructor(
         val header = headerJson.encodeUtf8().base64Url().trim('=')
         val payload = payloadJson.encodeUtf8().base64Url().trim('=')
 
-        val signatureBytes = algorithm.sign(
-            header.encodeUtf8().toByteArray(),
-            payload.encodeUtf8().toByteArray()
-        )
+        val signatureBytes =
+            algorithm.sign(
+                header.encodeUtf8().toByteArray(),
+                payload.encodeUtf8().toByteArray(),
+            )
         val signature = signatureBytes.toByteString().base64Url().trim('=')
 
         return "$header.$payload.$signature"
@@ -438,9 +463,7 @@ class JWTCreator private constructor(
          *
          * @return a JWTCreator.Builder instance to configure.
          */
-        fun init(): Builder {
-            return Builder()
-        }
+        fun init(): Builder = Builder()
     }
 }
 

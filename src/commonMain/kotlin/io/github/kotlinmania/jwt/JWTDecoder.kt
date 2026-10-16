@@ -3,15 +3,16 @@
 package io.github.kotlinmania.jwt
 
 import io.github.kotlinmania.jwt.TokenUtils
-import io.github.kotlinmania.jwt.interfaces.DecodedJWT
-import io.github.kotlinmania.jwt.interfaces.Claim
 import io.github.kotlinmania.jwt.exceptions.JWTDecodeException
 import io.github.kotlinmania.jwt.impl.JWTParser
+import io.github.kotlinmania.jwt.interfaces.Claim
+import io.github.kotlinmania.jwt.interfaces.DecodedJWT
 import okio.ByteString.Companion.decodeBase64
 import kotlin.time.Instant
 
-internal class JWTDecoder(private val parser: JWTParser) {
-
+internal class JWTDecoder(
+    private val parser: JWTParser,
+) {
     constructor() : this(JWTParser())
 
     @Throws(JWTDecodeException::class)
@@ -34,6 +35,7 @@ internal class JWTDecoder(private val parser: JWTParser) {
             override val type: String? get() = headerImpl.type
             override val contentType: String? get() = headerImpl.contentType
             override val keyId: String? get() = headerImpl.keyId
+
             override fun getHeaderClaim(name: String): Claim = headerImpl.getHeaderClaim(name)
 
             override val issuer: String? get() = payloadImpl.issuer
@@ -43,7 +45,9 @@ internal class JWTDecoder(private val parser: JWTParser) {
             override val notBefore: Instant? get() = payloadImpl.notBefore
             override val issuedAt: Instant? get() = payloadImpl.issuedAt
             override val id: String? get() = payloadImpl.id
+
             override fun getClaim(name: String): Claim = payloadImpl.getClaim(name)
+
             override val claims: Map<String, Claim> get() = payloadImpl.claims
 
             override val header: String get() = parts[0]

@@ -5,8 +5,12 @@ import io.github.kotlinmania.jwt.exceptions.SignatureVerificationException
 import io.github.kotlinmania.jwt.interfaces.DecodedJWT
 import io.github.kotlinmania.jwt.interfaces.ECDSAKeyProvider
 
-internal class ECDSAAlgorithm(crypto: CryptoHelper, id: String?, algorithm: String?, keyProvider: ECDSAKeyProvider) :
-    Algorithm(id ?: "ES256", algorithm ?: "ES256") {
+internal class ECDSAAlgorithm(
+    crypto: CryptoHelper,
+    id: String?,
+    algorithm: String?,
+    keyProvider: ECDSAKeyProvider,
+) : Algorithm(id ?: "ES256", algorithm ?: "ES256") {
     private val keyProvider: ECDSAKeyProvider
     private val crypto: CryptoHelper
 
@@ -19,23 +23,17 @@ internal class ECDSAAlgorithm(crypto: CryptoHelper, id: String?, algorithm: Stri
         CryptoHelper(),
         id,
         algorithm,
-        keyProvider
+        keyProvider,
     )
 
     @Throws(SignatureVerificationException::class)
-    override fun verify(jwt: DecodedJWT?) {
-        throw SignatureVerificationException(this)
-    }
+    override fun verify(jwt: DecodedJWT?): Unit = throw SignatureVerificationException(this)
 
     @Throws(SignatureGenerationException::class)
-    override fun sign(headerBytes: ByteArray?, payloadBytes: ByteArray?): ByteArray {
-        throw SignatureGenerationException(this, null)
-    }
+    override fun sign(headerBytes: ByteArray?, payloadBytes: ByteArray?): ByteArray = throw SignatureGenerationException(this, null)
 
     @Throws(SignatureGenerationException::class)
-    override fun sign(contentBytes: ByteArray?): ByteArray {
-        throw SignatureGenerationException(this, null)
-    }
+    override fun sign(contentBytes: ByteArray?): ByteArray = throw SignatureGenerationException(this, null)
 
     override val signingKeyId: String?
         get() = keyProvider.privateKeyId
@@ -44,9 +42,7 @@ internal class ECDSAAlgorithm(crypto: CryptoHelper, id: String?, algorithm: Stri
         fun providerForKeys(publicKey: Any?, privateKey: Any?): ECDSAKeyProvider {
             require(!(publicKey == null && privateKey == null)) { "Both provided Keys cannot be null." }
             return object : ECDSAKeyProvider {
-                override fun getPublicKeyById(keyId: String?): Any? {
-                    return publicKey
-                }
+                override fun getPublicKeyById(keyId: String?): Any? = publicKey
 
                 override val privateKey: Any?
                     get() = privateKey

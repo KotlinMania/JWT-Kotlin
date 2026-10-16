@@ -1,7 +1,7 @@
 package io.github.kotlinmania.jwt.algorithms
 
-import okio.ByteString.Companion.toByteString
 import okio.ByteString.Companion.encodeUtf8
+import okio.ByteString.Companion.toByteString
 
 /**
  * Class used to perform the signature hash calculations.
@@ -25,13 +25,15 @@ internal class CryptoHelper {
         secretBytes: ByteArray,
         header: String,
         payload: String,
-        signatureBytes: ByteArray
-    ): Boolean {
-        return verifySignatureFor(
-            algorithm, secretBytes,
-            header.encodeUtf8().toByteArray(), payload.encodeUtf8().toByteArray(), signatureBytes
+        signatureBytes: ByteArray,
+    ): Boolean =
+        verifySignatureFor(
+            algorithm,
+            secretBytes,
+            header.encodeUtf8().toByteArray(),
+            payload.encodeUtf8().toByteArray(),
+            signatureBytes,
         )
-    }
 
     /**
      * Verify signature for JWT header and payload.
@@ -48,7 +50,7 @@ internal class CryptoHelper {
         secretBytes: ByteArray,
         headerBytes: ByteArray,
         payloadBytes: ByteArray,
-        signatureBytes: ByteArray
+        signatureBytes: ByteArray,
     ): Boolean {
         val calculatedSignature = createSignatureFor(algorithm, secretBytes, headerBytes, payloadBytes)
         return calculatedSignature.contentEquals(signatureBytes)
@@ -67,7 +69,7 @@ internal class CryptoHelper {
         algorithm: String?,
         secretBytes: ByteArray,
         headerBytes: ByteArray,
-        payloadBytes: ByteArray
+        payloadBytes: ByteArray,
     ): ByteArray {
         val content = headerBytes + JWT_PART_SEPARATOR + payloadBytes
         return createSignatureFor(algorithm, secretBytes, content)
@@ -85,11 +87,15 @@ internal class CryptoHelper {
     fun createSignatureFor(algorithm: String?, secretBytes: ByteArray, contentBytes: ByteArray): ByteArray {
         val key = secretBytes.toByteString()
         val data = contentBytes.toByteString()
-        
+
         return when (algorithm) {
             "HmacSHA256" -> key.hmacSha256(data).toByteArray()
-            "HmacSHA384" -> throw UnsupportedOperationException("HmacSHA384 not supported by Okio directly yet (requires 3.2.0+ or manual impl)") // Okio 3.x supports sha256 and sha512. 
+
+            "HmacSHA384" -> throw UnsupportedOperationException("HmacSHA384 not supported by Okio directly yet (requires 3.2.0+ or manual impl)")
+
+            // Okio 3.x supports sha256 and sha512.
             "HmacSHA512" -> key.hmacSha512(data).toByteArray()
+
             else -> throw IllegalArgumentException("Unsupported algorithm: $algorithm")
         }
     }

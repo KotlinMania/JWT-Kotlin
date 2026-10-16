@@ -4,13 +4,13 @@ package io.github.kotlinmania.jwt
 
 import io.github.kotlinmania.jwt.JWTDecoder
 import io.github.kotlinmania.jwt.RegisteredClaims
+import io.github.kotlinmania.jwt.algorithms.Algorithm
 import io.github.kotlinmania.jwt.exceptions.*
+import io.github.kotlinmania.jwt.impl.ExpectedCheckHolder
+import io.github.kotlinmania.jwt.impl.JWTParser
 import io.github.kotlinmania.jwt.interfaces.Claim
 import io.github.kotlinmania.jwt.interfaces.DecodedJWT
 import io.github.kotlinmania.jwt.interfaces.Verification
-import io.github.kotlinmania.jwt.algorithms.Algorithm
-import io.github.kotlinmania.jwt.impl.ExpectedCheckHolder
-import io.github.kotlinmania.jwt.impl.JWTParser
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
@@ -27,9 +27,8 @@ import kotlin.time.Instant
  */
 class JWTVerifier internal constructor(
     private val algorithm: Algorithm,
-    expectedChecks: List<ExpectedCheckHolder>?
+    expectedChecks: List<ExpectedCheckHolder>?,
 ) : io.github.kotlinmania.jwt.interfaces.JWTVerifier {
-    
     val expectedChecks: List<ExpectedCheckHolder> = expectedChecks ?: emptyList()
     private val parser: JWTParser = JWTParser()
 
@@ -40,7 +39,9 @@ class JWTVerifier internal constructor(
      * Note that this class is **not** thread-safe. Calling [.build] returns an instance of
      * [io.github.kotlinmania.jwt.interfaces.JWTVerifier] which can be reused.
      */
-    class BaseVerification internal constructor(private val algorithm: Algorithm) : Verification {
+    class BaseVerification internal constructor(
+        private val algorithm: Algorithm,
+    ) : Verification {
         private val expectedChecks: MutableList<ExpectedCheckHolder> = mutableListOf()
         private var defaultLeeway: Long = 0
         private val customLeeways: MutableMap<String, Long> = mutableMapOf()
@@ -57,11 +58,15 @@ class JWTVerifier internal constructor(
                 verifyNull(claim, value.ifEmpty { null }) || (value.isNotEmpty() && value.contains(claim.asString()))
             }
             addCheck(RegisteredClaims.ISSUER) { claim, jwt ->
-                if (check(claim, jwt)) true else throw IncorrectClaimException(
-                    "The Claim 'iss' value doesn't match the required issuer.",
-                    RegisteredClaims.ISSUER,
-                    claim
-                )
+                if (check(claim, jwt)) {
+                    true
+                } else {
+                    throw IncorrectClaimException(
+                        "The Claim 'iss' value doesn't match the required issuer.",
+                        RegisteredClaims.ISSUER,
+                        claim,
+                    )
+                }
             }
             return this
         }
@@ -78,11 +83,12 @@ class JWTVerifier internal constructor(
             val value = audience.filterNotNull()
             addCheck(RegisteredClaims.AUDIENCE) { claim, jwt ->
                 if (verifyNull(claim, value.ifEmpty { null })) return@addCheck true
-                
+
                 if (!assertValidAudienceClaim(jwt.audience, value, true)) {
                     throw IncorrectClaimException(
                         "The Claim 'aud' value doesn't contain the required audience.",
-                        RegisteredClaims.AUDIENCE, claim
+                        RegisteredClaims.AUDIENCE,
+                        claim,
                     )
                 }
                 true
@@ -94,11 +100,12 @@ class JWTVerifier internal constructor(
             val value = audience.filterNotNull()
             addCheck(RegisteredClaims.AUDIENCE) { claim, jwt ->
                 if (verifyNull(claim, value.ifEmpty { null })) return@addCheck true
-                
+
                 if (!assertValidAudienceClaim(jwt.audience, value, false)) {
                     throw IncorrectClaimException(
                         "The Claim 'aud' value doesn't contain the required audience.",
-                        RegisteredClaims.AUDIENCE, claim
+                        RegisteredClaims.AUDIENCE,
+                        claim,
                     )
                 }
                 true
@@ -257,9 +264,7 @@ class JWTVerifier internal constructor(
             return JWTVerifier(algorithm, expectedChecks)
         }
 
-        private fun getLeewayFor(name: String): Long {
-            return customLeeways[name] ?: defaultLeeway
-        }
+        private fun getLeewayFor(name: String): Long = customLeeways[name] ?: defaultLeeway
 
         private fun addMandatoryClaimChecks() {
             val expiresAtLeeway = getLeewayFor(RegisteredClaims.EXPIRES_AT)
@@ -269,18 +274,18 @@ class JWTVerifier internal constructor(
             expectedChecks.add(
                 constructExpectedCheck(RegisteredClaims.EXPIRES_AT) { claim, _ ->
                     assertValidInstantClaim(RegisteredClaims.EXPIRES_AT, claim, expiresAtLeeway, true)
-                }
+                },
             )
             expectedChecks.add(
                 constructExpectedCheck(RegisteredClaims.NOT_BEFORE) { claim, _ ->
                     assertValidInstantClaim(RegisteredClaims.NOT_BEFORE, claim, notBeforeLeeway, false)
-                }
+                },
             )
             if (!ignoreIssuedAt) {
                 expectedChecks.add(
                     constructExpectedCheck(RegisteredClaims.ISSUED_AT) { claim, _ ->
                         assertValidInstantClaim(RegisteredClaims.ISSUED_AT, claim, issuedAtLeeway, false)
-                    }
+                    },
                 )
             }
         }
@@ -296,11 +301,11 @@ class JWTVerifier internal constructor(
             claimName: String,
             claim: Claim,
             leeway: Long,
-            shouldBeFuture: Boolean
+            shouldBeFuture: Boolean,
         ): Boolean {
             val claimVal = claim.asDate()
             val now = clock.now()
-            
+
             if (shouldBeFuture) {
                 if (!assertInstantIsFuture(claimVal, leeway, now)) {
                     throw TokenExpiredException("The Token has expired on $claimVal.", claimVal)
@@ -308,28 +313,26 @@ class JWTVerifier internal constructor(
             } else {
                 if (!assertInstantIsLessThanOrEqualToNow(claimVal, leeway, now)) {
                     throw IncorrectClaimException(
-                        "The Token can't be used before $claimVal.", claimName, claim
+                        "The Token can't be used before $claimVal.",
+                        claimName,
+                        claim,
                     )
                 }
             }
             return true
         }
 
-        private fun assertInstantIsFuture(claimVal: Instant?, leeway: Long, now: Instant): Boolean {
-            return claimVal == null || (now - leeway.seconds) < claimVal
-        }
+        private fun assertInstantIsFuture(claimVal: Instant?, leeway: Long, now: Instant): Boolean = claimVal == null || (now - leeway.seconds) < claimVal
 
-        private fun assertInstantIsLessThanOrEqualToNow(claimVal: Instant?, leeway: Long, now: Instant): Boolean {
-            return !(claimVal != null && (now + leeway.seconds) < claimVal)
-        }
+        private fun assertInstantIsLessThanOrEqualToNow(claimVal: Instant?, leeway: Long, now: Instant): Boolean = !(claimVal != null && (now + leeway.seconds) < claimVal)
 
         private fun assertValidAudienceClaim(
             actualAudience: List<String>?,
             expectedAudience: List<String>,
-            shouldContainAll: Boolean
+            shouldContainAll: Boolean,
         ): Boolean {
             if (actualAudience == null) return false
-            
+
             return if (shouldContainAll) {
                 actualAudience.containsAll(expectedAudience)
             } else {
@@ -342,29 +345,27 @@ class JWTVerifier internal constructor(
         }
 
         private fun addCheck(name: String, predicate: (Claim, DecodedJWT) -> Boolean) {
-            expectedChecks.add(constructExpectedCheck(name) { claim, jwt ->
-                if (claim.isNull()) {
-                    throw MissingClaimException.of(name)
-                }
-                predicate(claim, jwt)
-            })
+            expectedChecks.add(
+                constructExpectedCheck(name) { claim, jwt ->
+                    if (claim.isNull()) {
+                        throw MissingClaimException.of(name)
+                    }
+                    predicate(claim, jwt)
+                },
+            )
         }
 
         private fun constructExpectedCheck(
             claimName: String,
-            check: (Claim, DecodedJWT) -> Boolean
-        ): ExpectedCheckHolder {
-            return object : ExpectedCheckHolder {
+            check: (Claim, DecodedJWT) -> Boolean,
+        ): ExpectedCheckHolder =
+            object : ExpectedCheckHolder {
                 override val claimName: String = claimName
-                override fun verify(claim: Claim, decodedJWT: DecodedJWT): Boolean {
-                    return check(claim, decodedJWT)
-                }
-            }
-        }
 
-        private fun verifyNull(claim: Claim, value: Any?): Boolean {
-            return value == null && claim.isNull()
-        }
+                override fun verify(claim: Claim, decodedJWT: DecodedJWT): Boolean = check(claim, decodedJWT)
+            }
+
+        private fun verifyNull(claim: Claim, value: Any?): Boolean = value == null && claim.isNull()
     }
 
     @Throws(JWTVerificationException::class)
@@ -387,7 +388,7 @@ class JWTVerifier internal constructor(
     private fun verifyAlgorithm(jwt: DecodedJWT, expectedAlgorithm: Algorithm) {
         if (expectedAlgorithm.name != jwt.algorithm) {
             throw AlgorithmMismatchException(
-                "The provided Algorithm doesn't match the one defined in the JWT's Header."
+                "The provided Algorithm doesn't match the one defined in the JWT's Header.",
             )
         }
     }
@@ -404,15 +405,13 @@ class JWTVerifier internal constructor(
                 throw IncorrectClaimException(
                     "The Claim '$claimName' value doesn't match the required one.",
                     claimName,
-                    claim
+                    claim,
                 )
             }
         }
     }
 
     companion object {
-        fun init(algorithm: Algorithm): Verification {
-            return BaseVerification(algorithm)
-        }
+        fun init(algorithm: Algorithm): Verification = BaseVerification(algorithm)
     }
 }

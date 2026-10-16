@@ -12,12 +12,16 @@ import okio.ByteString.Companion.encodeUtf8
  *
  * This class is thread-safe.
  */
-internal class HMACAlgorithm(crypto: CryptoHelper, id: String, algorithm: String, secretBytes: ByteArray) :
-    Algorithm(id, algorithm) {
+internal class HMACAlgorithm(
+    crypto: CryptoHelper,
+    id: String,
+    algorithm: String,
+    secretBytes: ByteArray,
+) : Algorithm(id, algorithm) {
     private val crypto: CryptoHelper
     private val secret: ByteArray
 
-    //Visible for testing
+    // Visible for testing
     init {
         this.secret = secretBytes.copyOf()
         this.crypto = crypto
@@ -27,14 +31,14 @@ internal class HMACAlgorithm(crypto: CryptoHelper, id: String, algorithm: String
         CryptoHelper(),
         id,
         algorithm,
-        secretBytes
+        secretBytes,
     )
 
     constructor(id: String, algorithm: String, secret: String) : this(
         CryptoHelper(),
         id,
         algorithm,
-        getSecretBytes(secret)
+        getSecretBytes(secret),
     )
 
     @Throws(SignatureVerificationException::class)
@@ -42,9 +46,14 @@ internal class HMACAlgorithm(crypto: CryptoHelper, id: String, algorithm: String
         if (jwt == null) return
         try {
             val signatureBytes = jwt.signature.decodeBase64()?.toByteArray() ?: return
-            val valid = crypto.verifySignatureFor(
-                algorithmDescription, secret, jwt.header, jwt.payload, signatureBytes
-            )
+            val valid =
+                crypto.verifySignatureFor(
+                    algorithmDescription,
+                    secret,
+                    jwt.header,
+                    jwt.payload,
+                    signatureBytes,
+                )
             if (!valid) {
                 throw SignatureVerificationException(this)
             }
@@ -72,10 +81,8 @@ internal class HMACAlgorithm(crypto: CryptoHelper, id: String, algorithm: String
     }
 
     companion object {
-        //Visible for testing
+        // Visible for testing
         @Throws(IllegalArgumentException::class)
-        fun getSecretBytes(secret: String): ByteArray {
-            return secret.encodeUtf8().toByteArray()
-        }
+        fun getSecretBytes(secret: String): ByteArray = secret.encodeUtf8().toByteArray()
     }
 }

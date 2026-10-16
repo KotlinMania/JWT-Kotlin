@@ -65,10 +65,10 @@ interface Claim {
      * @throws JWTDecodeException if the custom JSON parser cannot decode the claim
      */
     // Reified inline function to replace Class<T>
-    // fun <T> asArray(clazz: KClass<T>): Array<T>? 
+    // fun <T> asArray(clazz: KClass<T>): Array<T>?
     // For simplicity in initial port, we might stick to specific list/array getters or use reified inline functions if possible in interface (not possible directly).
     // Let's stick to List for now as it's more idiomatic in Kotlin.
-    
+
     /**
      * Get this Claim as a List of type T.
      * If the value isn't an Array, null will be returned.

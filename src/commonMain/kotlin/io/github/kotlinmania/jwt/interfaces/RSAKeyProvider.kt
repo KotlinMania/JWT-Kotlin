@@ -1,6 +1,5 @@
 package io.github.kotlinmania.jwt.interfaces
 
-
 /**
  * RSA Public/Private Key provider.
  */

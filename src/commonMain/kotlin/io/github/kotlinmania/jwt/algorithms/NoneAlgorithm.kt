@@ -9,12 +9,8 @@ internal class NoneAlgorithm : Algorithm("none", "none") {
     }
 
     @Throws(SignatureGenerationException::class)
-    override fun sign(headerBytes: ByteArray?, payloadBytes: ByteArray?): ByteArray {
-        return ByteArray(0)
-    }
+    override fun sign(headerBytes: ByteArray?, payloadBytes: ByteArray?): ByteArray = ByteArray(0)
 
     @Throws(SignatureGenerationException::class)
-    override fun sign(contentBytes: ByteArray?): ByteArray {
-        return ByteArray(0)
-    }
+    override fun sign(contentBytes: ByteArray?): ByteArray = ByteArray(0)
 }
