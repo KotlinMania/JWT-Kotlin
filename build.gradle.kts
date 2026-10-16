@@ -405,7 +405,20 @@ val jvmToolchainVersion = providers.gradleProperty("jvm.toolchain").getOrElse("2
 kotlin {
     jvmToolchain(jvmToolchainVersion)
 
-    applyDefaultHierarchyTemplate()
+    // Default hierarchy plus a named posix group: shared POSIX code for every
+    // native target except mingw (Apple, Linux, Android Native) lives in
+    // src/posixMain and src/posixTest as real shared source sets.
+    applyDefaultHierarchyTemplate {
+        common {
+            group("native") {
+                group("posix") {
+                    group("apple")
+                    group("linux")
+                    group("androidNative")
+                }
+            }
+        }
+    }
 
     compilerOptions {
         languageVersion.set(KotlinVersion.KOTLIN_2_4)
@@ -492,7 +505,6 @@ kotlin {
                 // Mocha's 2s default times out heavy conformance suites on a loaded host.
                 useMocha {
                     timeout = "120s"
-                    nodeJsArgs += listOf("--max-old-space-size=4096")
                 }
             }
         }
@@ -812,38 +824,14 @@ kotlin {
     }
 
     sourceSets {
-        // posixMain: shared POSIX code for every native target except mingw.
-        // Added as a source directory per target rather than a dependsOn edge,
-        // which would switch off the default hierarchy template.
-        if (file("src/posixMain/kotlin").exists()) {
-            listOf(
-                "linuxX64Main",
-                "linuxArm64Main",
-                "macosArm64Main",
-                "iosArm64Main",
-                "iosSimulatorArm64Main",
-                "tvosArm64Main",
-                "tvosSimulatorArm64Main",
-                "watchosDeviceArm64Main",
-                "watchosSimulatorArm64Main",
-                "androidNativeArm64Main",
-                "androidNativeX64Main",
-            ).forEach { name -> findByName(name)?.kotlin?.srcDir("src/posixMain/kotlin") }
+        // The template's native-binding placeholders live in the template
+        // package. The project.ffi.* switches decide whether they compile, the
+        // same way they gate the C/JNI/N-API builds.
+        if (!napiFfiEnabled) {
+            jsMain { kotlin.exclude("io/github/kotlinmania/template/**") }
         }
-        if (file("src/posixTest/kotlin").exists()) {
-            listOf(
-                "linuxX64Test",
-                "linuxArm64Test",
-                "macosArm64Test",
-                "iosArm64Test",
-                "iosSimulatorArm64Test",
-                "tvosArm64Test",
-                "tvosSimulatorArm64Test",
-                "watchosDeviceArm64Test",
-                "watchosSimulatorArm64Test",
-                "androidNativeArm64Test",
-                "androidNativeX64Test",
-            ).forEach { name -> findByName(name)?.kotlin?.srcDir("src/posixTest/kotlin") }
+        if (!jvmFfiEnabled) {
+            jvmMain { kotlin.exclude("io/github/kotlinmania/template/internal/**") }
         }
         commonMain.dependencies {
             implementation(commonMainDependencyBundle)
@@ -971,6 +959,18 @@ tasks.named("check") {
 // ============================================================================
 // JS / Wasm toolchain pins
 // ============================================================================
+// V8 old-generation heap for every Node process the build starts: Mocha and
+// Karma test runners (js, wasmJs, wasmWasi) and webpack bundling. Node's
+// default is sized from host memory and can starve large test bundles.
+val nodeMaxOldSpaceSizeMb = providers.gradleProperty("node.maxOldSpaceSizeMb").getOrElse("4096")
+val nodeHeapArg = "--max-old-space-size=$nodeMaxOldSpaceSizeMb"
+tasks.withType<org.jetbrains.kotlin.gradle.targets.js.testing.KotlinJsTest>().configureEach {
+    nodeJsArgs += nodeHeapArg
+}
+tasks.withType<org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpack>().configureEach {
+    nodeArgs += nodeHeapArg
+}
+
 val nodeVersion = providers.gradleProperty("node.version").getOrElse("24.22.0")
 val wasmNodeVersion = providers.gradleProperty("wasm.node.version").getOrElse(nodeVersion)
 val yarnVersion = providers.gradleProperty("yarn.version").getOrElse("1.22.22")
@@ -1031,7 +1031,7 @@ rootProject.extensions.configure<NodeJsRootExtension>("kotlinNodeJs") {
     versions.webpackCli.version = providers.gradleProperty("node.webpackCli.version").getOrElse("7.2.3")
     versions.karma.version = providers.gradleProperty("node.karma.version").getOrElse("npm:karma-maintained@6.4.8")
     versions.karmaWebpack.version = "file:$patchedKarmaWebpackPackage"
-    versions.mocha.version = providers.gradleProperty("node.mocha.version").getOrElse("12.0.3")
+    versions.mocha.version = providers.gradleProperty("node.mocha.version").getOrElse("12.0.0-beta-10")
     versions.kotlinWebHelpers.version = providers.gradleProperty("node.kotlinWebHelpers.version").getOrElse("3.1.0")
 }
 

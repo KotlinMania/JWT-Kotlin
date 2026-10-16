@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "SwiftTestHarness",
-    platforms: [.macOS(.v14)],
+    platforms: [.macOS(.v15)],
     dependencies: [
         .package(name: "JWTKMP", path: "../build/SPMPackage/macosArm64/Debug")
     ],
