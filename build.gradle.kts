@@ -136,6 +136,12 @@ val intellijCoroutinesVersion =
 // dependency population, so keep the default embeddable runner explicit too.
 val projectDependencyHandler = project.dependencies
 configurations.configureEach {
+    // proc-macro-kotlin's published Android artifact bundles the JetBrains
+    // annotation classes, which duplicate org.jetbrains:annotations on the
+    // Android device-test classpath.
+    if (name.contains("androidDeviceTest", ignoreCase = true)) {
+        exclude(group = "org.jetbrains", module = "annotations")
+    }
     if (name == "swiftExportClasspath") {
         dependencies.add(projectDependencyHandler.create("org.jetbrains.kotlin:swift-export-embeddable:$kotlinVersion"))
         dependencies.add(
@@ -145,6 +151,17 @@ configurations.configureEach {
         )
     }
 }
+
+// Test name patterns to skip in browser test runs (js and wasmJs), from
+// project.js.browserTestExcludes as a comma-separated list. Use for tests that
+// need Node-only modules such as fs or path.
+val browserTestExcludes =
+    providers
+        .gradleProperty("project.js.browserTestExcludes")
+        .getOrElse("")
+        .split(',')
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
 
 // Opt-ins shared across Kotlin targets.
 val commonOptIns =
@@ -465,7 +482,11 @@ kotlin {
     // Web
     js {
         configureBenchmarkCompilation()
-        browser()
+        browser {
+            testTask {
+                browserTestExcludes.forEach { filter.excludeTestsMatching(it) }
+            }
+        }
         nodejs {
             testTask {
                 // Mocha's 2s default times out heavy conformance suites on a loaded host.
@@ -481,7 +502,11 @@ kotlin {
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
         configureBenchmarkCompilation()
-        browser()
+        browser {
+            testTask {
+                browserTestExcludes.forEach { filter.excludeTestsMatching(it) }
+            }
+        }
         nodejs {
             testTask {
                 useMocha {
@@ -787,6 +812,49 @@ kotlin {
     }
 
     sourceSets {
+        // Optional intermediate source sets. Each is wired only when the repo
+        // has the directory, so repos without them are unaffected.
+        if (file("src/jvmAndAndroidMain").exists()) {
+            val jvmAndAndroidMain =
+                create("jvmAndAndroidMain") {
+                    dependsOn(commonMain.get())
+                }
+            jvmMain.get().dependsOn(jvmAndAndroidMain)
+            androidMain.get().dependsOn(jvmAndAndroidMain)
+        }
+        // posixMain: shared POSIX code for every native target except mingw.
+        // Added as a source directory per target rather than a dependsOn edge,
+        // which would switch off the default hierarchy template.
+        if (file("src/posixMain/kotlin").exists()) {
+            listOf(
+                "linuxX64Main",
+                "linuxArm64Main",
+                "macosArm64Main",
+                "iosArm64Main",
+                "iosSimulatorArm64Main",
+                "tvosArm64Main",
+                "tvosSimulatorArm64Main",
+                "watchosDeviceArm64Main",
+                "watchosSimulatorArm64Main",
+                "androidNativeArm64Main",
+                "androidNativeX64Main",
+            ).forEach { name -> findByName(name)?.kotlin?.srcDir("src/posixMain/kotlin") }
+        }
+        if (file("src/posixTest/kotlin").exists()) {
+            listOf(
+                "linuxX64Test",
+                "linuxArm64Test",
+                "macosArm64Test",
+                "iosArm64Test",
+                "iosSimulatorArm64Test",
+                "tvosArm64Test",
+                "tvosSimulatorArm64Test",
+                "watchosDeviceArm64Test",
+                "watchosSimulatorArm64Test",
+                "androidNativeArm64Test",
+                "androidNativeX64Test",
+            ).forEach { name -> findByName(name)?.kotlin?.srcDir("src/posixTest/kotlin") }
+        }
         commonMain.dependencies {
             implementation(commonMainDependencyBundle)
         }
@@ -913,7 +981,7 @@ tasks.named("check") {
 // ============================================================================
 // JS / Wasm toolchain pins
 // ============================================================================
-val nodeVersion = providers.gradleProperty("node.version").getOrElse("24.15.0")
+val nodeVersion = providers.gradleProperty("node.version").getOrElse("24.22.0")
 val wasmNodeVersion = providers.gradleProperty("wasm.node.version").getOrElse(nodeVersion)
 val yarnVersion = providers.gradleProperty("yarn.version").getOrElse("1.22.22")
 val wasmYarnVersion = providers.gradleProperty("wasm.yarn.version").getOrElse(yarnVersion)
@@ -970,10 +1038,10 @@ val patchedKarmaWebpackPackage =
 //       NodeJsEnvSpec API gains equivalent properties. Track KGP release notes before removing.
 rootProject.extensions.configure<NodeJsRootExtension>("kotlinNodeJs") {
     versions.webpack.version = webpackVersion
-    versions.webpackCli.version = providers.gradleProperty("node.webpackCli.version").getOrElse("7.0.2")
-    versions.karma.version = providers.gradleProperty("node.karma.version").getOrElse("npm:karma-maintained@6.4.7")
+    versions.webpackCli.version = providers.gradleProperty("node.webpackCli.version").getOrElse("7.2.3")
+    versions.karma.version = providers.gradleProperty("node.karma.version").getOrElse("npm:karma-maintained@6.4.8")
     versions.karmaWebpack.version = "file:$patchedKarmaWebpackPackage"
-    versions.mocha.version = providers.gradleProperty("node.mocha.version").getOrElse("12.0.0-beta-10")
+    versions.mocha.version = providers.gradleProperty("node.mocha.version").getOrElse("12.0.3")
     versions.kotlinWebHelpers.version = providers.gradleProperty("node.kotlinWebHelpers.version").getOrElse("3.1.0")
 }
 
