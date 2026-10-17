@@ -219,8 +219,7 @@ class JWTVerifier internal constructor(
             return this
         }
 
-        // Helper for functional interface simulation
-        fun withClaim(name: String?, predicate: (Claim, DecodedJWT) -> Boolean): Verification {
+        override fun withClaim(name: String?, predicate: (Claim, DecodedJWT) -> Boolean): Verification {
             requireNotNull(name)
             addCheck(name) { claim, jwt ->
                 verifyNull(claim, predicate) || predicate(claim, jwt)

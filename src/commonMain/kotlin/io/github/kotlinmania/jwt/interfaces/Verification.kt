@@ -205,6 +205,16 @@ interface Verification {
     fun withClaim(name: String?, value: Instant?): Verification
 
     /**
+     * Verifies whether the claim with the given name satisfies [predicate].
+     *
+     * @param name the claim's name.
+     * @param predicate receives the claim and the decoded token, and returns
+     *   whether the claim is valid.
+     * @return this same Verification instance.
+     */
+    fun withClaim(name: String?, predicate: (Claim, DecodedJWT) -> Boolean): Verification
+
+    /**
      * Verifies whether the claim contain at least the given String items.
      *
      * @param name  the Claim's name.

@@ -1,222 +1,196 @@
-JWT-Kotlin (Kotlin Multiplatform fork of auth0/java-jwt)
-=========================================================
+# JWT-Kotlin
 
-This repository is a Kotlin Multiplatform adaptation of the excellent auth0/java-jwt library. It is designed **strictly for Kotlin Multiplatform projects**. If you are looking for a library to use in a pure Java project, please use the original [java-jwt](https://github.com/auth0/java-jwt).
+[![GitHub](https://img.shields.io/badge/GitHub-KotlinMania%2FJWT--Kotlin-blue.svg)](https://github.com/KotlinMania/JWT-Kotlin)
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.kotlinmania/jwt-kmp)](https://central.sonatype.com/artifact/io.github.kotlinmania/jwt-kmp)
+[![Build status](https://img.shields.io/github/actions/workflow/status/KotlinMania/JWT-Kotlin/ci.yml?branch=main)](https://github.com/KotlinMania/JWT-Kotlin/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+[![Kotlin Multiplatform](https://img.shields.io/badge/Kotlin-Multiplatform-7F52FF.svg?logo=kotlin)](https://kotlinlang.org/docs/multiplatform.html)
 
-Key differences from upstream:
-- Kotlin Multiplatform/Common code first. No Android- or JVM-only APIs are required to use the core features.
-- Strictly for Kotlin consumers; Java interoperability is not a goal and is not supported.
-- Currently supports HMAC-based algorithms (HS256/384/512) and `none` for testing. RSA/ECDSA are not yet provided in this fork.
-- Published to Maven Central as `io.github.kotlinmania:jwt-kmp`.
+Create, sign, verify and decode JSON Web Tokens from common Kotlin code on every
+Kotlin Multiplatform target.
 
-Contents
-- Getting Started
-- Installation
-- Supported algorithms
-- Usage examples (Kotlin)
-- FAQ / Notes
-- Contributing and License
+JWT-Kotlin is a Kotlin Multiplatform port of Auth0's
+[java-jwt](https://github.com/auth0/java-jwt). It is pure Kotlin: no JVM-only
+APIs and no Java libraries. Hashing and HMAC come from the KotlinMania ports of
+the RustCrypto crates, [hmac-kotlin](https://github.com/KotlinMania/hmac-kotlin)
+and [sha2-kotlin](https://github.com/KotlinMania/sha2-kotlin).
 
-Getting Started
----------------
+## Platforms
 
-Requirements
-- Kotlin 2.3.0
-- Kotlin Multiplatform with the following targets:
-    - **Native**: macOS (arm64/x64), linuxX64, mingwX64
-    - **Mobile**: Android, iOS (arm64, x64, simulatorArm64) — providing Swift compatibility via XCFramework
-        - *Note: The build automatically pulls the necessary Android SDK and accepts licenses.*
-    - **Web**: JS (Browser, Node.js), WASM (Browser, Node.js)
+| Family | Targets |
+|---|---|
+| JVM | `jvm` |
+| Android | Android library, `androidNativeArm64`, `androidNativeX64` |
+| Apple | `macosArm64`, `iosArm64`, `iosSimulatorArm64`, `tvosArm64`, `tvosSimulatorArm64`, `watchosDeviceArm64`, `watchosSimulatorArm64` |
+| Linux and Windows | `linuxX64`, `linuxArm64`, `mingwX64` |
+| Web | `js` (browser and Node.js), `wasmJs` (browser and Node.js), `wasmWasi` |
 
-Swift Support
--------------
+Apple x86_64 and 32-bit targets are not published.
 
-This library is compatible with Swift via XCFramework. To build the XCFramework, run:
+## Installation
 
-```bash
-./gradlew assembleJWTKMPXCFramework
-```
-
-The output will be available at `build/XCFrameworks/release/JWTKMP.xcframework` (or `debug` for debug builds).
-
-You can then add this XCFramework to your Xcode project.
-
-Dependencies:
-- Ktor 3.0.0
-- kotlinx.serialization 1.7.3
-- kotlinx.datetime 0.6.1
-- kotlinx.coroutines 1.9.0
-
-If you need a JVM- or Android-focused library, prefer the original upstream projects:
-- Java/JVM: https://github.com/auth0/java-jwt
-- Android decode-only: https://github.com/auth0/JWTDecode.Android
-
-Installation
-------------
-
-The library is published to Maven Central. You can add it to your Kotlin Multiplatform project as a dependency.
-
-**Note: This project is strictly for Kotlin Multiplatform consumers and should not be used in pure Java projects.**
-
-### Gradle (Kotlin DSL)
-
-Add the dependency to your `commonMain` source set:
+The library is on Maven Central as `io.github.kotlinmania:jwt-kmp`.
 
 ```kotlin
+// build.gradle.kts
 kotlin {
     sourceSets {
-        val commonMain by getting {
-            dependencies {
-                implementation("io.github.kotlinmania:jwt-kmp:0.2.0")
-            }
+        commonMain.dependencies {
+            implementation("io.github.kotlinmania:jwt-kmp:0.3.0")
         }
     }
 }
 ```
 
-Other Installation Options
---------------------------
+Or with a version catalog:
 
-If you need to consume an unreleased commit, use JitPack rather than vendoring this repository into another project.
+```toml
+# gradle/libs.versions.toml
+[versions]
+jwtKmp = "0.3.0"
 
-Use Maven via Git (JitPack)
-If you prefer to consume this repository directly from Git without submodules/composite builds, you can use JitPack. JitPack builds the project from the GitHub URL and serves artifacts from a Maven repository.
-
-**Note: This is intended for Kotlin projects only.**
-
-Gradle (Kotlin DSL):
-1) Add JitPack to your repositories (usually in `settings.gradle.kts` under `dependencyResolutionManagement`):
-```kotlin
-dependencyResolutionManagement {
-    repositories {
-        mavenCentral()
-        maven(url = "https://jitpack.io")
-    }
-}
+[libraries]
+jwt-kmp = { module = "io.github.kotlinmania:jwt-kmp", version.ref = "jwtKmp" }
 ```
-2) Add the dependency using the GitHub coordinates. Replace `<tag-or-commit>` with a release tag (recommended) or a commit SHA:
+
 ```kotlin
-dependencies {
-    implementation("com.github.KotlinMania:JWT-Kotlin:<tag-or-commit>")
+commonMain.dependencies {
+    implementation(libs.jwt.kmp)
 }
 ```
 
-(Note: While the repository name remains `JWT-Kotlin`, the published artifact name for Kotlin Multiplatform is `jwt-kmp`).
+## Supported algorithms
 
-Maven (pom.xml):
-```xml
-<repositories>
-  <repository>
-    <id>jitpack.io</id>
-    <url>https://jitpack.io</url>
-  </repository>
-  <repository>
-    <id>central</id>
-    <url>https://repo1.maven.org/maven2/</url>
-  </repository>
-  <!-- Add any other repositories you use -->
-  
-</repositories>
+| JWS | Factory | Description |
+|---|---|---|
+| HS256 | `Algorithm.hmac256(secret)` | HMAC with SHA-256 |
+| HS384 | `Algorithm.hmac384(secret)` | HMAC with SHA-384 |
+| HS512 | `Algorithm.hmac512(secret)` | HMAC with SHA-512 |
+| none | `Algorithm.none()` | Unsecured token, for tests only |
 
-<dependencies>
-  <dependency>
-    <groupId>com.github.KotlinMania</groupId>
-    <artifactId>JWT-Kotlin</artifactId>
-    <version>&lt;tag-or-commit&gt;</version>
-  </dependency>
-</dependencies>
+Secrets can be a `String` or a `ByteArray`. RSA (RS256/384/512) and ECDSA
+(ES256/384/512) are not available yet.
+
+## Usage
+
+### Create and sign a token
+
+```kotlin
+import io.github.kotlinmania.jwt.JWT
+import io.github.kotlinmania.jwt.algorithms.Algorithm
+import kotlin.time.Clock
+import kotlin.time.Duration.Companion.hours
+
+val algorithm = Algorithm.hmac256("super-secret")
+val now = Clock.System.now()
+
+val token: String =
+    JWT.create()
+        .withIssuer("auth.example.com")
+        .withSubject("user-42")
+        .withAudience("api.example.com")
+        .withIssuedAt(now)
+        .withExpiresAt(now + 1.hours)
+        .withClaim("role", "admin")
+        .sign(algorithm)
 ```
 
-Notes:
-- Use a Git tag (for example, `v0.2.0`) or a specific commit SHA to ensure reproducible builds.
-- JitPack reads the Gradle build in this repo and publishes the multiplatform artifacts on demand. The URL for the Git repo is: https://github.com/KotlinMania/JWT-Kotlin.git
+### Verify a token
 
-Supported algorithms
---------------------
+`verify` checks the signature and every claim you require, and throws a
+`JWTVerificationException` subtype when anything does not match.
 
-Currently implemented in this fork for all targets (Native, Android, iOS, JS, WASM):
-
-|  JWS  | Algorithm | Description                      |
-|:-----:|:---------:|:---------------------------------|
-| HS256 |  HMAC256  | HMAC with SHA-256                |
-| HS384 |  HMAC384  | HMAC with SHA-384                |
-| HS512 |  HMAC512  | HMAC with SHA-512                |
-| none  |   None    | Unsecured JWT (for testing only) |
-
-Not yet available here (planned):
-- RSA (RS256/384/512)
-- ECDSA (ES256/384/512)
-
-Usage examples (Kotlin)
------------------------
-
-Creating a JWT (HS256)
 ```kotlin
-val algorithm = Algorithm.hmac256("super-secret")
-val token = JWT.create()
-    .withIssuer("example")
-    .withClaim("role", "admin")
-    .sign(algorithm)
-```
+import io.github.kotlinmania.jwt.exceptions.JWTVerificationException
+import io.github.kotlinmania.jwt.exceptions.TokenExpiredException
 
-Verifying a JWT
-```kotlin
-val token: String = "your.jwt.token"
-val algorithm = Algorithm.hmac256("super-secret")
-
-try {
-    val verifier = JWT.require(algorithm)
-        .withIssuer("example")
+val verifier =
+    JWT.require(algorithm)
+        .withIssuer("auth.example.com")
+        .withAudience("api.example.com")
+        .withClaim("role", "admin")
+        .acceptLeeway(5) // seconds of clock skew allowed for exp, nbf and iat
         .build()
 
+try {
     val decoded = verifier.verify(token)
-    println("Subject: ${decoded.subject}")
-} catch (ex: JWTVerificationException) {
-    // invalid signature or claims
+    println("subject = ${decoded.subject}")
+} catch (e: TokenExpiredException) {
+    // the token is past its exp claim
+} catch (e: JWTVerificationException) {
+    // bad signature, wrong issuer or audience, missing claim, ...
 }
 ```
 
-Decoding without verification
+Custom checks take a predicate:
+
 ```kotlin
+JWT.require(algorithm)
+    .withClaim("role") { claim, _ -> claim.asString() in setOf("admin", "owner") }
+    .build()
+```
+
+### Decode without verifying
+
+Decoding only parses the token. Never trust the result for authorization.
+
+```kotlin
+import io.github.kotlinmania.jwt.exceptions.JWTDecodeException
+
 try {
     val decoded = JWT.decode(token)
-    println(decoded.header)
-    println(decoded.payload)
-} catch (ex: JWTDecodeException) {
-    // malformed token
+    println(decoded.algorithm) // "HS256"
+    println(decoded.getClaim("role").asString()) // "admin"
+} catch (e: JWTDecodeException) {
+    // not a well-formed JWT
 }
 ```
 
-FAQ / Notes
------------
+### Read claims
 
-- Why no RSA/ECDSA yet?
-  This fork currently focuses on common functionality that works across native targets. RSA/ECDSA require platform-specific crypto backends; contributions are welcome.
+| Registered claim | Accessor |
+|---|---|
+| `iss` | `decoded.issuer` |
+| `sub` | `decoded.subject` |
+| `aud` | `decoded.audience` |
+| `exp` / `nbf` / `iat` | `decoded.expiresAt` / `decoded.notBefore` / `decoded.issuedAt` (`kotlin.time.Instant`) |
+| `jti` | `decoded.id` |
 
-- Is `none` supported in production?
-  No. `none` is intended only for testing. Do not use in production.
+Any claim is available through `decoded.getClaim(name)`, with `asString()`,
+`asInt()`, `asLong()`, `asDouble()`, `asBoolean()`, `asDate()`, `asList(...)`,
+`asMap()` and `isNull()`.
 
-- JVM support?
-  This library is designed for Kotlin Multiplatform and Android. Pure JVM usage is not a priority; use the original `java-jwt` for standard Java/JVM applications.
+## Swift
 
-Contributing
-------------
+Apple consumers can use the XCFramework:
 
-Issues and PRs are welcome. Please use clear, minimal reproductions and include target/platform details. By contributing you agree to the terms of the MIT license.
+```bash
+./gradlew assembleJWTKMPXCFramework
+```
 
-License
--------
+The framework is written to `build/XCFrameworks/release/JWTKMP.xcframework`.
 
-This project is licensed under the MIT license. See the [LICENSE](./LICENSE) file for more info.
+## Building from source
 
----
+```bash
+./gradlew build   # every target
+./gradlew test    # every test this host can run, plus the Swift Export smoke test
+```
 
-Acknowledgments
----------------
+## Contributing
 
-This Kotlin Multiplatform port was created by **Sydney Renee** of [The Solace Project](mailto:sydney@solace.ofharmony.ai)
-for [KotlinMania](https://github.com/KotlinMania).
+Issues and pull requests are welcome. Please include a minimal reproduction and
+the target where the problem appears.
 
-Special thanks to the original authors:
+## License
 
-- [Auth0](https://github.com/auth0) for the original [java-jwt](https://github.com/auth0/java-jwt) library
+MIT. See [LICENSE](./LICENSE).
+
+## Acknowledgments
+
+This Kotlin Multiplatform port was created by **Sydney Renee** of
+[The Solace Project](mailto:sydney@solace.ofharmony.ai) for
+[KotlinMania](https://github.com/KotlinMania).
+
+Thanks to [Auth0](https://github.com/auth0) for the original
+[java-jwt](https://github.com/auth0/java-jwt) library.
