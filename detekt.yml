@@ -1,11 +1,7 @@
-# Detekt configuration for vendored antlr4-runtime port.
+# Detekt configuration for KotlinMania ports.
 # Relaxed from template defaults because this is a line-by-line port of
-# upstream Java code; many structural/style rules that make sense for
+# upstream source code; many structural/style rules that make sense for
 # idiomatic Kotlin would create false positives here.
-
-build:
-  maxIssues: 100
-  excludeCorrectable: false
 
 config:
   validation: true
@@ -31,9 +27,10 @@ performance:
 style:
   active: true
   MagicNumber: { active: false }
-  NewLineAtEndOfFile: { active: true }
+  NewLineAtEndOfFile: { active: false }
+  MayBeConstant: { active: false }
   ReturnCount: { active: false }
-  UnusedImports: { active: true }
+  UnusedImport: { active: true }
   UnnecessaryInheritance: { active: true }
   UtilityClassWithPublicConstructor: { active: true }
   DestructuringDeclarationWithTooManyEntries: { active: true, maxDestructuringEntries: 3 }
@@ -49,8 +46,8 @@ style:
   WildcardImport: { active: false }
   ModifierOrder: { active: false }
   UnusedPrivateProperty: { active: false }
-  RedundantVisibilityModifierRule: { active: false }
-  UnnecessaryAbstractClass: { active: false }
+  RedundantVisibilityModifier: { active: false }
+  AbstractClassCanBeInterface: { active: false }
 
 complexity:
   active: true
@@ -73,7 +70,6 @@ empty-blocks:
   EmptyFunctionBlock: { active: false }
   EmptyIfBlock: { active: false }
   EmptyInitBlock: { active: true }
-  EmptyKtFile: { active: true }
   EmptySecondaryConstructor: { active: true }
   EmptyTryBlock: { active: true }
   EmptyWhenBlock: { active: true }
@@ -90,6 +86,7 @@ naming:
   FunctionParameterNaming: { active: false }
   MatchingDeclarationName: { active: false }
   ObjectPropertyNaming: { active: false }
+  MemberNameEqualsClassName: { active: false }
 
 exceptions:
   active: true
@@ -102,4 +99,3 @@ exceptions:
 
 coroutines:
   active: false
-

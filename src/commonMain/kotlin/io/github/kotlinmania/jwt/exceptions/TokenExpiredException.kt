@@ -7,16 +7,17 @@ import kotlin.time.Instant
 /**
  * The exception that is thrown if the token is expired.
  */
-class TokenExpiredException(message: String?, expiredOn: Instant?) : JWTVerificationException(message) {
+class TokenExpiredException(
+    message: String?,
+    expiredOn: Instant?,
+) : JWTVerificationException(message) {
     private val expiredOn: Instant?
 
     init {
         this.expiredOn = expiredOn
     }
 
-    fun getExpiredOn(): Instant? {
-        return expiredOn
-    }
+    fun getExpiredOn(): Instant? = expiredOn
 
     companion object {
         private val serialVersionUID = -7076928975713577708L

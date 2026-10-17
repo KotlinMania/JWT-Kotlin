@@ -27,9 +27,7 @@ object JWT {
      * or JSON format of each of the jwt parts.
      */
     @Throws(JWTDecodeException::class)
-    fun decode(token: String?): DecodedJWT {
-        return JWTDecoder(JWTParser()).decode(token!!)
-    }
+    fun decode(token: String?): DecodedJWT = JWTDecoder(JWTParser()).decode(token!!)
 
     /**
      * Returns a [Verification] builder with the algorithm to be used to validate token signature.
@@ -38,16 +36,14 @@ object JWT {
      * @return [Verification] builder
      * @throws IllegalArgumentException if the provided algorithm is null.
      */
-    fun require(algorithm: Algorithm?): Verification {
-        return io.github.kotlinmania.jwt.JWTVerifier.init(algorithm!!)
-    }
+    fun require(algorithm: Algorithm?): Verification =
+        io.github.kotlinmania.jwt.JWTVerifier
+            .init(algorithm!!)
 
     /**
      * Returns a Json Web Token builder used to create and sign tokens.
      *
      * @return a token builder.
      */
-    fun create(): JWTCreator.Builder {
-        return JWTCreator.init()
-    }
+    fun create(): JWTCreator.Builder = JWTCreator.init()
 }

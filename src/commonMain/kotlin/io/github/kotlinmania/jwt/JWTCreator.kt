@@ -2,12 +2,18 @@
 
 package io.github.kotlinmania.jwt
 
+import io.github.kotlinmania.base64.engine.generalpurpose.URL_SAFE_NO_PAD
 import io.github.kotlinmania.jwt.algorithms.Algorithm
 import io.github.kotlinmania.jwt.exceptions.JWTCreationException
 import io.github.kotlinmania.jwt.exceptions.SignatureGenerationException
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 import kotlin.time.Instant
-import kotlinx.serialization.json.*
-import okio.ByteString.Companion.encodeUtf8
 
 /**
  * The JWTCreator class holds the sign method to generate a complete JWT (with Signature)
@@ -19,15 +25,15 @@ import okio.ByteString.Companion.encodeUtf8
 class JWTCreator private constructor(
     private val algorithm: Algorithm,
     headerClaims: Map<String, Any?>?,
-    payloadClaims: Map<String, Any?>?
+    payloadClaims: Map<String, Any?>?,
 ) {
     private val headerJson: String
     private val payloadJson: String
 
     init {
         try {
-            headerJson = mapToJson(headerClaims ?: emptyMap()).toString()
-            payloadJson = mapToJson(payloadClaims ?: emptyMap()).toString()
+            headerJson = mapToJson(headerClaims.orEmpty()).toString()
+            payloadJson = mapToJson(payloadClaims.orEmpty()).toString()
         } catch (e: Exception) {
             throw JWTCreationException("Some of the Claims couldn't be converted to a valid JSON format.", e)
         }
@@ -41,14 +47,32 @@ class JWTCreator private constructor(
         return JsonObject(content)
     }
 
-    private fun toJsonElement(value: Any?): JsonElement {
-        return when (value) {
-            null -> JsonNull
-            is String -> JsonPrimitive(value)
-            is Number -> JsonPrimitive(value)
-            is Boolean -> JsonPrimitive(value)
-            is Instant -> JsonPrimitive(value.epochSeconds)
-            is List<*> -> JsonArray(value.map { toJsonElement(it) })
+    private fun toJsonElement(value: Any?): JsonElement =
+        when (value) {
+            null -> {
+                JsonNull
+            }
+
+            is String -> {
+                JsonPrimitive(value)
+            }
+
+            is Number -> {
+                JsonPrimitive(value)
+            }
+
+            is Boolean -> {
+                JsonPrimitive(value)
+            }
+
+            is Instant -> {
+                JsonPrimitive(value.epochSeconds)
+            }
+
+            is List<*> -> {
+                JsonArray(value.map { toJsonElement(it) })
+            }
+
             is Map<*, *> -> {
                 val map = mutableMapOf<String, JsonElement>()
                 for ((k, v) in value) {
@@ -58,10 +82,23 @@ class JWTCreator private constructor(
                 }
                 JsonObject(map)
             }
-            is Array<*> -> JsonArray(value.map { toJsonElement(it) })
-            else -> JsonPrimitive(value.toString())
+
+            is Array<*> -> {
+                JsonArray(value.map { toJsonElement(it) })
+            }
+
+            is IntArray -> {
+                JsonArray(value.map { JsonPrimitive(it) })
+            }
+
+            is LongArray -> {
+                JsonArray(value.map { JsonPrimitive(it) })
+            }
+
+            else -> {
+                JsonPrimitive(value.toString())
+            }
         }
-    }
 
     /**
      * The Builder class holds the Claims that defines the JWT to be created.
@@ -116,12 +153,13 @@ class JWTCreator private constructor(
                 val json = Json.parseToJsonElement(headerClaimsJson)
                 if (json is JsonObject) {
                     // Convert JsonObject to Map
-                    val map = json.mapValues { entry -> 
-                        when(val v = entry.value) {
-                            is JsonPrimitive -> v.contentOrNull
-                            else -> v.toString() // Simplification
+                    val map =
+                        json.mapValues { entry ->
+                            when (val v = entry.value) {
+                                is JsonPrimitive -> v.contentOrNull
+                                else -> v.toString() // Simplification
+                            }
                         }
-                    }
                     return withHeader(map)
                 }
                 throw IllegalArgumentException("The provided JSON is not a JSON object.")
@@ -335,7 +373,7 @@ class JWTCreator private constructor(
             addClaim(name, list)
             return this
         }
-        
+
         @Throws(IllegalArgumentException::class)
         fun withArrayClaim(name: String, items: Array<String>?): Builder {
             addClaim(name, items)
@@ -343,13 +381,13 @@ class JWTCreator private constructor(
         }
 
         @Throws(IllegalArgumentException::class)
-        fun withArrayClaim(name: String, items: Array<Int>?): Builder {
+        fun withArrayClaim(name: String, items: IntArray?): Builder {
             addClaim(name, items)
             return this
         }
 
         @Throws(IllegalArgumentException::class)
-        fun withArrayClaim(name: String, items: Array<Long>?): Builder {
+        fun withArrayClaim(name: String, items: LongArray?): Builder {
             addClaim(name, items)
             return this
         }
@@ -420,14 +458,15 @@ class JWTCreator private constructor(
 
     @Throws(SignatureGenerationException::class)
     private fun sign(): String {
-        val header = headerJson.encodeUtf8().base64Url().trim('=')
-        val payload = payloadJson.encodeUtf8().base64Url().trim('=')
+        val header = URL_SAFE_NO_PAD.encode(headerJson.encodeToByteArray())
+        val payload = URL_SAFE_NO_PAD.encode(payloadJson.encodeToByteArray())
 
-        val signatureBytes = algorithm.sign(
-            header.encodeUtf8().toByteArray(),
-            payload.encodeUtf8().toByteArray()
-        )
-        val signature = signatureBytes.toByteString().base64Url().trim('=')
+        val signatureBytes =
+            algorithm.sign(
+                header.encodeToByteArray(),
+                payload.encodeToByteArray(),
+            )
+        val signature = URL_SAFE_NO_PAD.encode(signatureBytes)
 
         return "$header.$payload.$signature"
     }
@@ -438,11 +477,6 @@ class JWTCreator private constructor(
          *
          * @return a JWTCreator.Builder instance to configure.
          */
-        fun init(): Builder {
-            return Builder()
-        }
+        fun init(): Builder = Builder()
     }
 }
-
-// Helper extension for ByteArray to convert to ByteString
-private fun ByteArray.toByteString() = okio.ByteString.of(*this)

@@ -1,5 +1,5 @@
 const webpack = require('webpack');
-const merge = require('webpack-merge');
+const { merge } = require('webpack-merge');
 
 const KW_WebpackPlugin = require('../webpack/plugin');
 const DefaultWebpackOptionsFactory = require('../webpack/defaults');

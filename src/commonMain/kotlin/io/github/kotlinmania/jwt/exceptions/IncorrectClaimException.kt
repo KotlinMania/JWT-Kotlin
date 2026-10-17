@@ -12,7 +12,8 @@ class IncorrectClaimException(
      *
      * @return The claim name for which the verification failed.
      */
-    val claimName: String?, claim: Claim?
+    val claimName: String?,
+    claim: Claim?,
 ) : InvalidClaimException(message) {
     private val claimValue: Claim?
 
@@ -33,7 +34,5 @@ class IncorrectClaimException(
      *
      * @return The value for which the verification failed
      */
-    fun getClaimValue(): Claim? {
-        return claimValue
-    }
+    fun getClaimValue(): Claim? = claimValue
 }

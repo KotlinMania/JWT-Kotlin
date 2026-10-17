@@ -23,7 +23,7 @@ jobs:
           java-version: '21'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6.4.0
+        uses: gradle/actions/setup-gradle@v6.3.0
 
       - name: Build and test iOS targets + XCFramework
         # build.gradle.kts registers the XCFramework as XCFramework(frameworkName),
@@ -40,7 +40,6 @@ jobs:
           ./gradlew \
             compileKotlinIosArm64 \
             compileKotlinIosSimulatorArm64 \
-            compileKotlinIosX64 \
             iosSimulatorArm64Test \
             "assemble${XCF_NAME}XCFramework" \
             --no-configuration-cache

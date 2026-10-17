@@ -5,7 +5,6 @@ package io.github.kotlinmania.jwt.interfaces
 import io.github.kotlinmania.jwt.JWTVerifier
 import kotlin.time.Instant
 
-
 /**
  * Constructs and holds the checks required for a JWT to be considered valid. Note that implementations are
  * **not** thread-safe. Once built by calling [.build], the resulting
@@ -19,9 +18,7 @@ interface Verification {
      * @param issuer the required Issuer value.
      * @return this same Verification instance.
      */
-    fun withIssuer(issuer: String?): Verification {
-        return withIssuer(*arrayOf<String?>(issuer))
-    }
+    fun withIssuer(issuer: String?): Verification = withIssuer(*arrayOf<String?>(issuer))
 
     /**
      * Verifies whether the JWT contains an Issuer ("iss") claim that contains all the values provided.
@@ -227,7 +224,7 @@ interface Verification {
      * @throws IllegalArgumentException if the name is `null`.
      */
     @Throws(IllegalArgumentException::class)
-    fun withArrayClaim(name: String?, vararg items: Int?): Verification
+    fun withIntArrayClaim(name: String?, vararg items: Int): Verification
 
     /**
      * Verifies whether the claim contain at least the given Long items.
@@ -238,7 +235,7 @@ interface Verification {
      * @throws IllegalArgumentException if the name is `null`.
      */
     @Throws(IllegalArgumentException::class)
-    fun withArrayClaim(name: String?, vararg items: Long?): Verification
+    fun withLongArrayClaim(name: String?, vararg items: Long): Verification
 
     /**
      * Skip the Issued At ("iat") claim verification. By default, the verification is performed.

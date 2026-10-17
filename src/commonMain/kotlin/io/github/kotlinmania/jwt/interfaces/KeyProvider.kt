@@ -1,6 +1,5 @@
 package io.github.kotlinmania.jwt.interfaces
 
-
 /**
  * Generic Public/Private Key provider.
  * While implementing, ensure the Private Key and Private Key ID doesn't change in between signing a token.

@@ -1,42 +1,92 @@
-# Compiled class file
+# Kotlin/Gradle build artifacts
+build/
+.gradle/
+.kotlin/
 *.class
-.DS_Store
-
-# Log file
-*.log
-
-# BlueJ files
-*.ctxt
-
-# Mobile Tools for Java (J2ME)
-.mtj.tmp/
-
-# Package Files #
 *.jar
 *.war
-*.nar
 *.ear
+
+# Keep the Gradle wrapper jar checked in so CI can run `./gradlew`.
+!gradle/wrapper/gradle-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+out/
+
+# Upstream Rust source — clone freshly when porting begins
+tmp/
+!tmp/.gitkeep
+
+# AST distance reports and binaries
+port_status_report.md
+high_priority_ports.md
+NEXT_ACTIONS.md
+port_lint_proposed_changes.md
+ast_distance_*.txt
+.cache/
+*.lock
+kotlin-js-store/*
+!kotlin-js-store/package.json
+!kotlin-js-store/yarn.lock
+!kotlin-js-store/wasm/
+!kotlin-js-store/wasm/yarn.lock
+tools/ast_distance/ast_distance
+tools/ast_distance/build/
+tools/ast_distance
+tools/
+
+# JVM heap dumps
+*.hprof
+java_pid*.hprof
+
+# macOS Finder metadata
+.DS_Store
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Android SDK
+/.android-sdk/
+local.properties
+
+# Swift Package Manager / Xcode workspace state.
+#
+# `swift-test-harness/` is a real SPM package that exercises the Kotlin
+# Swift Export pipeline against the artifacts produced by
+# `embedSwiftExportForXcode`. Its `Package.swift`, `Tests/`, and
+# per-package `.gitignore` (which ignores its own `.build/`) are all
+# tracked. The patterns below cover the Swift/Xcode workspace state
+# that this harness — or any future Swift Package added under the
+# repo — would also produce.
+#
+# Note: the staging directory the Kotlin Swift Export pipeline writes
+# to (`build/swift-test/lib*.a` + `.swiftmodule/` bundles when run with
+# the Xcode-style env vars) is already covered by `build/` above.
+.swiftpm/
+DerivedData/
+*.xcuserstate
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+local.properties
+
+# npm install output; JS dependencies come from yarn via the Kotlin Gradle plugin
+node_modules/
+package-lock.json
+!native/node-ffi/package-lock.json
+
+# Repo-specific
+*.log
+*.ctxt
+.mtj.tmp/
+*.nar
 *.zip
 *.tar.gz
 *.rar
-
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 replay_pid*
-
-# Kotlin Gradle plugin data, see https://kotlinlang.org/docs/whatsnew20.html#new-directory-for-kotlin-data-in-gradle-projects
-.kotlin/
 /build/
-.gradle/
-# Android SDK
 .android-sdk/
-local.properties
-
-*.hprof
-
-# IDEs
-.idea/
-*.iml
-
-# JS
 kotlin-js-store/

@@ -14,6 +14,6 @@
   "dependencies": {
     "glob": "^13.0.6",
     "minimatch": "^10.2.5",
-    "webpack-merge": "^4.2.2"
+    "webpack-merge": "^6.0.1"
   }
 }
