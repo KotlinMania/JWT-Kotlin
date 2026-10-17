@@ -30,8 +30,6 @@ class JWTParserTest {
                 parser.parsePayload(nonObjectJson)
             }
 
-        // In my current implementation, if it's not a JsonObject, it throws decodeException(json)
-        // which currently doesn't have a cause if it's just a type check failure,
-        // BUT if it fails during parseToJsonElement it has a cause.
+        assertNotNull(exception.cause, "Exception should have a cause")
     }
 }

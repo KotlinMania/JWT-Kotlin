@@ -19,4 +19,4 @@ class MissingClaimException(
                 claimName = claimName,
             )
     }
-} 
+}

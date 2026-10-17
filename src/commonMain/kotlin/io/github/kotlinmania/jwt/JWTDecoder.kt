@@ -2,12 +2,10 @@
 
 package io.github.kotlinmania.jwt
 
-import io.github.kotlinmania.jwt.TokenUtils
 import io.github.kotlinmania.jwt.exceptions.JWTDecodeException
 import io.github.kotlinmania.jwt.impl.JWTParser
 import io.github.kotlinmania.jwt.interfaces.Claim
 import io.github.kotlinmania.jwt.interfaces.DecodedJWT
-import okio.ByteString.Companion.decodeBase64
 import kotlin.time.Instant
 
 internal class JWTDecoder(
@@ -21,8 +19,8 @@ internal class JWTDecoder(
         val headerJson: String
         val payloadJson: String
         try {
-            headerJson = parts[0].decodeBase64()?.utf8() ?: throw JWTDecodeException("Invalid header encoding")
-            payloadJson = parts[1].decodeBase64()?.utf8() ?: throw JWTDecodeException("Invalid payload encoding")
+            headerJson = TokenUtils.decodeBase64Url(parts[0])?.decodeToString() ?: throw JWTDecodeException("Invalid header encoding")
+            payloadJson = TokenUtils.decodeBase64Url(parts[1])?.decodeToString() ?: throw JWTDecodeException("Invalid payload encoding")
         } catch (e: Exception) {
             throw JWTDecodeException("The UTF8 decoding failed.", e)
         }

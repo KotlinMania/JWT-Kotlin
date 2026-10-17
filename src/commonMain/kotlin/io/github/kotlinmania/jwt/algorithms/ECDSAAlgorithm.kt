@@ -41,15 +41,20 @@ internal class ECDSAAlgorithm(
     companion object {
         fun providerForKeys(publicKey: Any?, privateKey: Any?): ECDSAKeyProvider {
             require(!(publicKey == null && privateKey == null)) { "Both provided Keys cannot be null." }
-            return object : ECDSAKeyProvider {
-                override fun getPublicKeyById(keyId: String?): Any? = publicKey
-
-                override val privateKey: Any?
-                    get() = privateKey
-
-                override val privateKeyId: String?
-                    get() = null
-            }
+            return StaticEcdsaKeyProvider(publicKey, privateKey)
         }
     }
+}
+
+private class StaticEcdsaKeyProvider(
+    private val publicKeyValue: Any?,
+    private val privateKeyValue: Any?,
+) : ECDSAKeyProvider {
+    override fun getPublicKeyById(keyId: String?): Any? = publicKeyValue
+
+    override val privateKey: Any?
+        get() = privateKeyValue
+
+    override val privateKeyId: String?
+        get() = null
 }

@@ -1,10 +1,9 @@
 package io.github.kotlinmania.jwt.algorithms
 
+import io.github.kotlinmania.jwt.TokenUtils
 import io.github.kotlinmania.jwt.exceptions.SignatureGenerationException
 import io.github.kotlinmania.jwt.exceptions.SignatureVerificationException
 import io.github.kotlinmania.jwt.interfaces.DecodedJWT
-import okio.ByteString.Companion.decodeBase64
-import okio.ByteString.Companion.encodeUtf8
 
 /**
  * Subclass representing an Hash-based MAC signing algorithm
@@ -45,7 +44,7 @@ internal class HMACAlgorithm(
     override fun verify(jwt: DecodedJWT?) {
         if (jwt == null) return
         try {
-            val signatureBytes = jwt.signature.decodeBase64()?.toByteArray() ?: return
+            val signatureBytes = TokenUtils.decodeBase64Url(jwt.signature) ?: return
             val valid =
                 crypto.verifySignatureFor(
                     algorithmDescription,
@@ -83,6 +82,6 @@ internal class HMACAlgorithm(
     companion object {
         // Visible for testing
         @Throws(IllegalArgumentException::class)
-        fun getSecretBytes(secret: String): ByteArray = secret.encodeUtf8().toByteArray()
+        fun getSecretBytes(secret: String): ByteArray = secret.encodeToByteArray()
     }
 }

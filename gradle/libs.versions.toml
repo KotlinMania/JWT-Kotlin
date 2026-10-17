@@ -4,7 +4,11 @@ coroutines = "1.11.0"
 serialization = "1.11.0"
 datetime = "0.8.0"
 collectionsImmutable = "0.5.2"
-okio = "3.18.2"
+base64 = "0.1.2"
+constantTimeEq = "0.1.1"
+digest = "0.1.0"
+hmac = "0.1.2"
+sha2 = "0.1.0"
 androidKmp = "9.4.1"
 vanniktech = "0.37.0"
 detekt = "2.0.0-alpha.6"
@@ -28,7 +32,11 @@ kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serializa
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "datetime" }
 collections-immutable = { module = "org.jetbrains.kotlinx:kotlinx-collections-immutable", version.ref = "collectionsImmutable" }
-okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
+base64-kotlin = { module = "io.github.kotlinmania:base64-kotlin", version.ref = "base64" }
+constant-time-eq-kotlin = { module = "io.github.kotlinmania:constant-time-eq-kotlin", version.ref = "constantTimeEq" }
+digest-kotlin = { module = "io.github.kotlinmania:digest-kotlin", version.ref = "digest" }
+hmac-kotlin = { module = "io.github.kotlinmania:hmac-kotlin", version.ref = "hmac" }
+sha2-kotlin = { module = "io.github.kotlinmania:sha2-kotlin", version.ref = "sha2" }
 kotlinx-benchmark-runtime = { module = "org.jetbrains.kotlinx:kotlinx-benchmark-runtime", version.ref = "kotlinxBenchmark" }
 
 [bundles]
@@ -38,5 +46,9 @@ jwt-commonMain = [
   "kotlinx-serialization-json",
   "kotlinx-datetime",
   "collections-immutable",
-  "okio",
+  "base64-kotlin",
+  "constant-time-eq-kotlin",
+  "digest-kotlin",
+  "hmac-kotlin",
+  "sha2-kotlin",
 ]

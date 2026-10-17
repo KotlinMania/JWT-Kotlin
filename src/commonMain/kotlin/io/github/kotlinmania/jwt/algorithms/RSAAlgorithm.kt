@@ -46,15 +46,20 @@ internal class RSAAlgorithm(
     companion object {
         fun providerForKeys(publicKey: Any?, privateKey: Any?): RSAKeyProvider {
             require(!(publicKey == null && privateKey == null)) { "Both provided Keys cannot be null." }
-            return object : RSAKeyProvider {
-                override fun getPublicKeyById(keyId: String?): Any? = publicKey
-
-                override val privateKey: Any?
-                    get() = privateKey
-
-                override val privateKeyId: String?
-                    get() = null
-            }
+            return StaticRsaKeyProvider(publicKey, privateKey)
         }
     }
+}
+
+private class StaticRsaKeyProvider(
+    private val publicKeyValue: Any?,
+    private val privateKeyValue: Any?,
+) : RSAKeyProvider {
+    override fun getPublicKeyById(keyId: String?): Any? = publicKeyValue
+
+    override val privateKey: Any?
+        get() = privateKeyValue
+
+    override val privateKeyId: String?
+        get() = null
 }

@@ -2,11 +2,17 @@
 
 package io.github.kotlinmania.jwt
 
+import io.github.kotlinmania.base64.engine.generalpurpose.URL_SAFE_NO_PAD
 import io.github.kotlinmania.jwt.algorithms.Algorithm
 import io.github.kotlinmania.jwt.exceptions.JWTCreationException
 import io.github.kotlinmania.jwt.exceptions.SignatureGenerationException
-import kotlinx.serialization.json.*
-import okio.ByteString.Companion.encodeUtf8
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 import kotlin.time.Instant
 
 /**
@@ -26,8 +32,8 @@ class JWTCreator private constructor(
 
     init {
         try {
-            headerJson = mapToJson(headerClaims ?: emptyMap()).toString()
-            payloadJson = mapToJson(payloadClaims ?: emptyMap()).toString()
+            headerJson = mapToJson(headerClaims.orEmpty()).toString()
+            payloadJson = mapToJson(payloadClaims.orEmpty()).toString()
         } catch (e: Exception) {
             throw JWTCreationException("Some of the Claims couldn't be converted to a valid JSON format.", e)
         }
@@ -79,6 +85,14 @@ class JWTCreator private constructor(
 
             is Array<*> -> {
                 JsonArray(value.map { toJsonElement(it) })
+            }
+
+            is IntArray -> {
+                JsonArray(value.map { JsonPrimitive(it) })
+            }
+
+            is LongArray -> {
+                JsonArray(value.map { JsonPrimitive(it) })
             }
 
             else -> {
@@ -367,13 +381,13 @@ class JWTCreator private constructor(
         }
 
         @Throws(IllegalArgumentException::class)
-        fun withArrayClaim(name: String, items: Array<Int>?): Builder {
+        fun withArrayClaim(name: String, items: IntArray?): Builder {
             addClaim(name, items)
             return this
         }
 
         @Throws(IllegalArgumentException::class)
-        fun withArrayClaim(name: String, items: Array<Long>?): Builder {
+        fun withArrayClaim(name: String, items: LongArray?): Builder {
             addClaim(name, items)
             return this
         }
@@ -444,15 +458,15 @@ class JWTCreator private constructor(
 
     @Throws(SignatureGenerationException::class)
     private fun sign(): String {
-        val header = headerJson.encodeUtf8().base64Url().trim('=')
-        val payload = payloadJson.encodeUtf8().base64Url().trim('=')
+        val header = URL_SAFE_NO_PAD.encode(headerJson.encodeToByteArray())
+        val payload = URL_SAFE_NO_PAD.encode(payloadJson.encodeToByteArray())
 
         val signatureBytes =
             algorithm.sign(
-                header.encodeUtf8().toByteArray(),
-                payload.encodeUtf8().toByteArray(),
+                header.encodeToByteArray(),
+                payload.encodeToByteArray(),
             )
-        val signature = signatureBytes.toByteString().base64Url().trim('=')
+        val signature = URL_SAFE_NO_PAD.encode(signatureBytes)
 
         return "$header.$payload.$signature"
     }
@@ -466,6 +480,3 @@ class JWTCreator private constructor(
         fun init(): Builder = Builder()
     }
 }
-
-// Helper extension for ByteArray to convert to ByteString
-private fun ByteArray.toByteString() = okio.ByteString.of(*this)

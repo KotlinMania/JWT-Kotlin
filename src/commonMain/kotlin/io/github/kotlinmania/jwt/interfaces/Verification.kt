@@ -224,7 +224,7 @@ interface Verification {
      * @throws IllegalArgumentException if the name is `null`.
      */
     @Throws(IllegalArgumentException::class)
-    fun withArrayClaim(name: String?, vararg items: Int?): Verification
+    fun withIntArrayClaim(name: String?, vararg items: Int): Verification
 
     /**
      * Verifies whether the claim contain at least the given Long items.
@@ -235,7 +235,7 @@ interface Verification {
      * @throws IllegalArgumentException if the name is `null`.
      */
     @Throws(IllegalArgumentException::class)
-    fun withArrayClaim(name: String?, vararg items: Long?): Verification
+    fun withLongArrayClaim(name: String?, vararg items: Long): Verification
 
     /**
      * Skip the Issued At ("iat") claim verification. By default, the verification is performed.

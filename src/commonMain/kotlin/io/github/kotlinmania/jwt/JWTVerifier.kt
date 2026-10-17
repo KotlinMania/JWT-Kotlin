@@ -2,10 +2,13 @@
 
 package io.github.kotlinmania.jwt
 
-import io.github.kotlinmania.jwt.JWTDecoder
-import io.github.kotlinmania.jwt.RegisteredClaims
 import io.github.kotlinmania.jwt.algorithms.Algorithm
-import io.github.kotlinmania.jwt.exceptions.*
+import io.github.kotlinmania.jwt.exceptions.AlgorithmMismatchException
+import io.github.kotlinmania.jwt.exceptions.IncorrectClaimException
+import io.github.kotlinmania.jwt.exceptions.InvalidClaimException
+import io.github.kotlinmania.jwt.exceptions.JWTVerificationException
+import io.github.kotlinmania.jwt.exceptions.MissingClaimException
+import io.github.kotlinmania.jwt.exceptions.TokenExpiredException
 import io.github.kotlinmania.jwt.impl.ExpectedCheckHolder
 import io.github.kotlinmania.jwt.impl.JWTParser
 import io.github.kotlinmania.jwt.interfaces.Claim
@@ -29,7 +32,7 @@ class JWTVerifier internal constructor(
     private val algorithm: Algorithm,
     expectedChecks: List<ExpectedCheckHolder>?,
 ) : io.github.kotlinmania.jwt.interfaces.JWTVerifier {
-    val expectedChecks: List<ExpectedCheckHolder> = expectedChecks ?: emptyList()
+    val expectedChecks: List<ExpectedCheckHolder> = expectedChecks.orEmpty()
     private val parser: JWTParser = JWTParser()
 
     /**
@@ -234,18 +237,18 @@ class JWTVerifier internal constructor(
             return this
         }
 
-        override fun withArrayClaim(name: String?, vararg items: Int?): Verification {
+        override fun withIntArrayClaim(name: String?, vararg items: Int): Verification {
             requireNotNull(name)
-            val nonNullItems = items.filterNotNull()
+            val nonNullItems = items.toList()
             addCheck(name) { claim, _ ->
                 verifyNull(claim, nonNullItems.ifEmpty { null }) || assertValidCollectionClaim(claim, nonNullItems)
             }
             return this
         }
 
-        override fun withArrayClaim(name: String?, vararg items: Long?): Verification {
+        override fun withLongArrayClaim(name: String?, vararg items: Long): Verification {
             requireNotNull(name)
-            val nonNullItems = items.filterNotNull()
+            val nonNullItems = items.toList()
             addCheck(name) { claim, _ ->
                 verifyNull(claim, nonNullItems.ifEmpty { null }) || assertValidCollectionClaim(claim, nonNullItems)
             }
