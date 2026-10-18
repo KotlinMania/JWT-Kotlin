@@ -63,7 +63,7 @@ generator a stable, fixed-width-typed surface.
 The pattern reference for scale (430 functions, all the edge cases: string
 returns that alias inputs and must be freed, `noStringConversion`, opaque
 struct wrappers, `char**` argv patterns, per-platform `#ifdef _WIN32`,
-etc.) is the same directory in `/Volumes/stuff/Projects/kotlinmania/libc-kotlin/`.
+etc.) is the same directory in [libc-kotlin](https://github.com/KotlinMania/libc-kotlin).
 
 ## Fields that commonly need attention
 

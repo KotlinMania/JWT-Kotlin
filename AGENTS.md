@@ -6,8 +6,9 @@ embedded hourly runbook, the per-repo `SWIFT_EXPORT_ROLLOUT.md` lessons, and
 the long trail of recovered field-feedback into one place. **When this file
 disagrees with anything you remember, this file wins.**
 
-> **Source-of-truth.** The workspace-root `AGENTS.md` (at
-> `/Volumes/stuff/Projects/kotlinmania/AGENTS.md`) is canonical.
+> **Source-of-truth.** The workspace-root `AGENTS.md` is canonical.
+> The workspace root is the folder that holds every `*-kotlin/` repo;
+> paths in this guide are relative to it (from inside a repo, prefix `../`).
 > Workspace-root `CLAUDE.md` is a tiny redirect file pointing here
 > (plain text — **never a symlink**: this workspace is Kotlin
 > Multiplatform and Windows is a first-class target, and Windows git
@@ -97,7 +98,7 @@ Do not treat an earlier item as permission to skip a later one. The §0
 completion contract requires the whole chain, and §3 names source porting
 as the default next action when infra is clean.
 
-1. **Read this file (`AGENTS.md`) and `SWIFT.md` in full** (you're in `AGENTS.md`, but note that IDE/Antigravity rule injection truncates files after ~21KB, so you MUST explicitly read `/Volumes/stuff/Projects/kotlinmania/AGENTS.md` §3–§12 and `SWIFT.md`). The §0 contract is non-negotiable.
+1. **Read this file (`AGENTS.md`) and `SWIFT.md` in full** (you're in `AGENTS.md`, but note that IDE/Antigravity rule injection truncates files after ~21KB, so you MUST explicitly read the workspace-root `AGENTS.md` §3–§12 and `SWIFT.md`). The §0 contract is non-negotiable.
    Read the focused repo's `README.md`, `SWIFT.md`, `RUST_CALLERS.md`, and any `NEXT_ACTIONS.md` /
    `PORT_REPORT.md`. There is no per-repo `CLAUDE.md` anymore (removed
    2026-05-24); the per-repo `AGENTS.md` is a copy of this file.
@@ -121,7 +122,7 @@ as the default next action when infra is clean.
    `swift test` locally (§6).
 7. **Source porting** (§3) is the default next action when infra is
    clean. Use `ast_distance` to inventory gaps — the binary at
-   `/Volumes/stuff/Projects/kotlinmania/bin/ast_distance` is **never a
+   `bin/ast_distance` at the workspace root is **never a
    blocker**; if a repo's `tools/ast_distance` is missing, copy the
    workspace binary in (§3 gives the exact `cp` + `.gitignore` lines).
    Translate from `tmp/` per the translation rules (one Rust file → one
@@ -168,8 +169,12 @@ as the default next action when infra is clean.
 - **`port-lint: ignore` is not a real directive** (§3). Strip it when
   you see it. Only `port-lint: source <path>` and `port-lint: tests
   <path>` are recognized.
+- **Pure Kotlin Multiplatform only — never a Java library** (§3). No
+  `java.*` / `javax.*` imports, no JVM-only or third-party Java artifacts
+  (okio, Guava, Bouncy Castle, Jackson, ...). The 200+ Rust ports under
+  `kotlinmania/` are the replacement for the Java ecosystem: use them.
 - **Workspace artifacts go under**
-  `/Volumes/stuff/Projects/kotlinmania/automation-artifacts/`. No
+  `automation-artifacts/` at the workspace root. No
   `/tmp` scratch (§1).
 
 The yarn-resolution security block, the Android SDK installer pattern,
@@ -239,7 +244,7 @@ unavailable, gate failure with root cause outside the focused repo). A
 no-change report without that level of blocker is a failed session.
 
 > **`ast_distance` is never a blocker.** The workspace ships a runnable
-> binary at `/Volumes/stuff/Projects/kotlinmania/bin/ast_distance`
+> binary at `bin/ast_distance` in the workspace root
 > (Mach-O arm64). If a repo requires it and does not ship its own under
 > `tools/ast_distance/`, copy the workspace binary into the repo's
 > `tools/` folder and add the path to `.gitignore` (it's a local
@@ -257,7 +262,7 @@ These are non-negotiable. Violating any of them requires immediate repair.
   Do not bypass with `--no-verify`. Work in the repo's main checkout.
 - **No `/tmp` scratch.** Reports, logs, helper outputs go under the repo's
   own `tmp/` or under
-  `/Volumes/stuff/Projects/kotlinmania/automation-artifacts/`. Future agents
+  `automation-artifacts/` at the workspace root. Future agents
   need the raw data, not summaries.
 - **Force-push requires explicit confirmation.** Codex `default.rules`
   marks `git push --force`, `--force-with-lease`, and `-f` as `ask`. Do
@@ -304,7 +309,7 @@ These are non-negotiable. Violating any of them requires immediate repair.
   `session/<date>-<topic>`); land every commit in the session onto it as
   separate commits; ship as one PR.
 - **No broad recursive `find`.** Do not walk
-  `/Volumes/stuff/Projects/kotlinmania`, all `*-kotlin/` repos, or `find .`
+  the workspace root, all `*-kotlin/` repos, or `find .`
   from a repo root without prunes. It monopolizes the workspace and disables
   required tooling. Use `rg --files` with explicit `-g` patterns, or scope
   to small named subtrees (`src/`, `.github/`, `tools/`). If a recursive
@@ -452,7 +457,7 @@ repo whether or not it ships its own `tools/ast_distance/` binary.
   repo's `tools/` folder and add the path to `.gitignore`:
   ```bash
   mkdir -p tools
-  cp /Volumes/stuff/Projects/kotlinmania/bin/ast_distance tools/
+  cp ../bin/ast_distance tools/
   grep -qxF 'tools/ast_distance' .gitignore 2>/dev/null \
     || echo 'tools/ast_distance' >> .gitignore
   ```
@@ -481,7 +486,7 @@ repo whether or not it ships its own `tools/ast_distance/` binary.
   header is that it has no upstream Rust counterpart (Kotlin-side
   glue, repo-specific helpers, or new APIs), in which case it simply
   has no header — not a fake "ignore" directive.
-- **How `ast_distance` evaluates stubs and contamination (ground truth from `/Volumes/games/ASTDistance/`):**
+- **How `ast_distance` evaluates stubs and contamination (ground truth from the `sydneyrenee/ASTDistance` sources):**
   - **Module-root headers trip stub zeroing:** In `include/ast_parser.hpp` (`has_stub_bodies`), any Kotlin file carrying a port-lint header pointing to a module root (`/mod.rs`, `/lib.rs`, `/main.rs`, or `/__init__.py`) is intentionally flagged as a stub (`has_stub_bodies == true`), which triggers: `"target contains TODO/stub/placeholder markers in function bodies"` and zeroes the score. Upstream `mod.rs` and `lib.rs` files represent Rust module/crate root syntax and must never be ported as `Mod.kt` or `Lib.kt`. Split real implementation from `lib.rs` or `mod.rs` into focused `.kt` files in their package paths, never re-export via `mod.rs`, and consult `RUST_CALLERS.md` to update callers directly.
   - **Zero-tolerance contamination filters:** In `include/codebase.hpp` (`kotlin_contamination_reasons_for_text`), `ast_distance` scans Kotlin code and comments (outside of the exact single-line `// port-lint: (source|tests) <path>` header):
     - **`snake_case` identifiers:** Any lowercase `snake_case` identifier in Kotlin code or comments trips the cheat detector (`snake_case identifier ... in Kotlin code/comments`).
@@ -494,6 +499,28 @@ A repo that no longer has upstream Rust under `tmp/` and has no
 optimizing for idiomatic Kotlin, not against an upstream Rust oracle.
 That's a state, not a "mode."
 
+### Pure Kotlin Multiplatform only — never import a Java library
+
+Every repo is strictly pure Kotlin on KMP. Never add a Java or JVM-only
+dependency, never import `java.*` / `javax.*` in common code, and never reach
+for platform crypto or IO when a port exists. The workspace's 200+ Rust ports
+(`ls -d ../*-kotlin` from any repo) are a near-complete
+Java replacement. Common needs and the port to use:
+
+| Need | Use |
+|---|---|
+| Hashing, MAC, signatures | `sha1-kotlin`, `sha2-kotlin`, `sha3-kotlin`, `digest-kotlin`, `hmac-kotlin`, `ed25519-dalek-kotlin`, `p256-kotlin`, `crypto-box-kotlin`, `constant-time-eq-kotlin`, `zeroize-kotlin` |
+| IO, buffers, files | `km-io` (`io.github.kotlinmania:km-io`; replaces okio and kotlinx-io), `bytes-kotlin`, `tempfile-kotlin`, `memmap2-kotlin`, `walkdir-kotlin`, `glob-kotlin` |
+| Encoding, text | `base64-kotlin` (or stdlib `kotlin.io.encoding.Base64`), `encoding-rs-kotlin`, `unicode-*-kotlin`, `regex-kotlin`, `fancy-regex-kotlin` |
+| Data formats | `serde-kotlin`, `serde-json-kotlin`, `serde-yaml-kotlin`, `toml-kotlin`, `csv-kotlin`, `quick-xml-kotlin`, `bincode-kotlin`, `prost-kotlin` |
+| Compression, archives | `flate2-kotlin`, `zlib-kotlin`, `zstd-kotlin`, `zip-kotlin`, `tar-kotlin` |
+| Time, ids, random | `chrono-kotlin`, `time-kotlin`, `uuid-kotlin`, `rand-kotlin`, `getrandom-kotlin` |
+| Networking, async | `tokio-kotlin`, `http-kotlin`, `reqwest-kotlin`, `url-kotlin`, `rustls-kotlin`, `tungstenite-kotlin`, `futures-kotlin` |
+
+If a needed capability has no port yet, port it (see below); do not paper
+over the gap with a Java library or an `expect`/`actual` that delegates to
+the JVM.
+
 ### When you can't port a Rust dependency: check kotlinmania siblings first
 
 Before declaring a Rust dependency unportable, **check whether
@@ -503,7 +530,7 @@ dependency is often a `*-kotlin/` sibling away. Order of attack:
 
 1. **Look for a `<crate>-kotlin/` sibling repo** in the workspace.
    ```bash
-   ls -d /Volumes/stuff/Projects/kotlinmania/<crate>-kotlin 2>/dev/null
+   ls -d ../<crate>-kotlin 2>/dev/null
    ```
 2. **Check if that sibling publishes to Maven Central.** Look at its
    `build.gradle.kts` for `publishAndReleaseToMavenCentral` wiring and
@@ -547,7 +574,7 @@ Don't keep gnawing the same handful of projects (regex-syntax-kotlin,
 starlark-syntax-kotlin, codex-kotlin). Every `*-kotlin/` repo is in scope.
 
 ```bash
-for d in /Volumes/stuff/Projects/kotlinmania/*-kotlin /Volumes/stuff/Projects/kotlinmania/klang; do
+for d in ../*-kotlin ../klang; do
     [ -d "$d/.git" ] || continue
     ts=$(git -C "$d" log -1 --format=%ct 2>/dev/null) || continue
     printf '%s\t%s\t%s\n' "$ts" "$(date -r "$ts" +%Y-%m-%d)" "$(basename "$d")"
@@ -564,7 +591,7 @@ same file three runs in a row, pick a different file (or repo) first.
 
 Two artifacts at the workspace root answer "what should I port next?" without anyone needing to hit Jira directly: `PORT_PRIORITY.md` and `port_priority.json`.
 
-For detailed information on the `ordered_priority` schema, Kahn-style layers, graph analysis metrics, and the catalog of scaffold scripts (`scaffold/analysis/*` and `scaffold/jira/*`), please refer to [JIRA_INTEGRATION.md](file:///Volumes/stuff/Projects/kotlinmania/JIRA_INTEGRATION.md).
+For detailed information on the `ordered_priority` schema, Kahn-style layers, graph analysis metrics, and the catalog of scaffold scripts (`scaffold/analysis/*` and `scaffold/jira/*`), please refer to [JIRA_INTEGRATION.md](JIRA_INTEGRATION.md).
 
 ---
 
@@ -572,7 +599,7 @@ For detailed information on the `ordered_priority` schema, Kahn-style layers, gr
 
 Every `*-kotlin` repo with `swiftExport { … }` carries a `SWIFT.md` file (which is the renamed `SWIFT_EXPORT_ROLLOUT.md`).
 
-For detailed instructions on the 5-class sweep, the mandatory infrastructure pins, structural rename rules for Swift/Java emitted-name collisions, the strong-typing checklists, and the SAM interface / flat-class patterns, please refer to [SWIFT.md](file:///Volumes/stuff/Projects/kotlinmania/SWIFT.md).
+For detailed instructions on the 5-class sweep, the mandatory infrastructure pins, structural rename rules for Swift/Java emitted-name collisions, the strong-typing checklists, and the SAM interface / flat-class patterns, please refer to [SWIFT.md](SWIFT.md).
 
 ---
 
@@ -700,13 +727,13 @@ disabled/re-enabled, and the commit that changed them.
 
 ## 8. Android SDK normalization (Gradle-backed, no shell)
 
-For repos that target Android, we use a Gradle-backed SDK installer. For complete migration steps, import lists, local.properties logic, CodeQL `java-kotlin` extraction workflows, and verification commands, please refer to [ANDROID.md](file:///Volumes/stuff/Projects/kotlinmania/ANDROID.md).
+For repos that target Android, we use a Gradle-backed SDK installer. For complete migration steps, import lists, local.properties logic, CodeQL `java-kotlin` extraction workflows, and verification commands, please refer to [ANDROID.md](ANDROID.md).
 
 ---
 
 ## 9. JS test-toolchain security patching
 
-For JS npm warning mitigation, resolutions, vendored karma-webpack setups, and Dependabot vulnerability resolutions, please refer to [JS_SECURITY.md](file:///Volumes/stuff/Projects/kotlinmania/JS_SECURITY.md).
+For JS npm warning mitigation, resolutions, vendored karma-webpack setups, and Dependabot vulnerability resolutions, please refer to [JS_SECURITY.md](JS_SECURITY.md).
 
 ### Automated yarn lock upgrades — do NOT run manually
 `kotlinUpgradeYarnLock` and `kotlinWasmUpgradeYarnLock` are wired directly into `build.gradle.kts` as pre-requisite dependencies for all JS and WASM compile/test tasks (`jsTasksNeedingYarnLock`, `wasmTasksNeedingYarnLock`), `hostTests`, and `fullTargetBuildTaskNames` (`./gradlew build`).
@@ -891,10 +918,9 @@ Every session ends with a report that includes:
 
 ## 13. Quick reference — directories and tools
 
-- Workspace root: `/Volumes/stuff/Projects/kotlinmania`
-- Per-repo: `/Volumes/stuff/Projects/kotlinmania/<repo>-kotlin/`
-- Automation artifacts:
-  `/Volumes/stuff/Projects/kotlinmania/automation-artifacts/`
+- Workspace root: the folder holding every `*-kotlin/` repo
+- Per-repo: `<repo>-kotlin/`
+- Automation artifacts: `automation-artifacts/`
 - Canonical Swift Export rollout:
   `automation-artifacts/swift-export-rollout/` (apply.sh, blast.sh,
   PR_BODY.md, SWIFT_EXPORT_ROLLOUT.md, triage docs)
@@ -906,8 +932,7 @@ Every session ends with a report that includes:
   don't hand-edit)
 - Generator: `python scaffold/analysis/generate_port_priority.py`
 - Apply to Jira: `python scaffold/jira/apply_ordered_priority.py`
-- Local CodeQL: `codeql` 2.25.4 at `/Volumes/stuff/tools/codeql`,
-  symlinked to `/opt/homebrew/bin/codeql`
+- Local CodeQL: `codeql` 2.25.4 on `PATH`
 - Local Dependabot: `dependabot` 1.86.0 via Homebrew; needs
   `LOCAL_GITHUB_ACCESS_TOKEN=$(gh auth token)` env var
 
@@ -938,8 +963,8 @@ Every session ends with a report that includes:
 
 ### Authority files in this workspace (read order)
 
-1. `/Volumes/stuff/Projects/kotlinmania/AGENTS.md` (this file).
-2. `/Volumes/stuff/Projects/kotlinmania/CLAUDE.md` (legacy; this file
+1. The workspace-root `AGENTS.md` (this file).
+2. The workspace-root `CLAUDE.md` (legacy; this file
    is the merged authority).
 3. Per-repo `AGENTS.md`, `CLAUDE.md`, `README.md`,
    `SWIFT_EXPORT_ROLLOUT.md`.

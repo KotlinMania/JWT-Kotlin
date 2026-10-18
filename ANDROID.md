@@ -63,7 +63,7 @@ on x86 and x86-64.
 ## Bionic — Android's libc
 
 > Source: https://android.googlesource.com/platform/bionic
-> Clone (sparse, libc-only): `/Volumes/stuff/tools/bionic/libc/`
+> Clone (sparse, libc-only): `git clone --filter=blob:none --sparse https://android.googlesource.com/platform/bionic && git -C bionic sparse-checkout set libc`
 
 Bionic is not glibc and not musl. It is a small, Android-specific C library
 plus math library plus dynamic linker. When porting a libc surface, the
@@ -226,8 +226,8 @@ Bucket 3 gaps above.
 
 Process when you need to confirm whether a symbol is present:
 
-1. `grep -n '<symbol>' /Volumes/stuff/tools/bionic/libc/include/**/*.h`
-   (or use `git -C /Volumes/stuff/tools/bionic grep`).
+1. `grep -n '<symbol>' bionic/libc/include/**/*.h` in your sparse clone
+   (or use `git -C bionic grep`).
 2. Read the declaration. Note any `__INTRODUCED_IN(N)`.
 3. If `__INTRODUCED_IN(N)` puts it above the K/N min-API ceiling, the symbol
    needs the **dlsym pattern** (Bucket 2). It is not "missing"; it is
@@ -358,4 +358,4 @@ KMP repos with an `android` target use `compileAndroidMain` as the CodeQL extrac
 - Bionic pthread.h: https://android.googlesource.com/platform/bionic/+/HEAD/libc/include/pthread.h
 - Bionic libc.map.txt (per-API symbol versioning): https://android.googlesource.com/platform/bionic/+/HEAD/libc/libc.map.txt
 - Android API level constants: https://android.googlesource.com/platform/bionic/+/HEAD/libc/include/android/api_level.h
-- Local sparse clone: `/Volumes/stuff/tools/bionic/libc/`
+- Local sparse clone: see "Clone" at the top of this section.
