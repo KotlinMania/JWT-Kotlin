@@ -1,0 +1,7 @@
+{
+  "name": "kotlin-js-store",
+  "private": true,
+  "dependencies": {
+    "webpack": "5.112.0"
+  }
+}

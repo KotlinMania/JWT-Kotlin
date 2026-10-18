@@ -89,4 +89,3 @@ hs_err_pid*
 replay_pid*
 /build/
 .android-sdk/
-kotlin-js-store/
