@@ -36,7 +36,7 @@ The library is on Maven Central as `io.github.kotlinmania:jwt-kmp`.
 kotlin {
     sourceSets {
         commonMain.dependencies {
-            implementation("io.github.kotlinmania:jwt-kmp:0.3.0")
+            implementation("io.github.kotlinmania:jwt-kmp:0.3.1")
         }
     }
 }
@@ -47,7 +47,7 @@ Or with a version catalog:
 ```toml
 # gradle/libs.versions.toml
 [versions]
-jwtKmp = "0.3.0"
+jwtKmp = "0.3.1"
 
 [libraries]
 jwt-kmp = { module = "io.github.kotlinmania:jwt-kmp", version.ref = "jwtKmp" }
