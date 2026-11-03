@@ -1,4 +1,6 @@
 import groovy.json.JsonSlurper
+import io.github.kotlinmania.build.BuildToolTask
+import io.github.kotlinmania.build.NodeFfiBuilder
 import org.gradle.api.GradleException
 import org.gradle.api.artifacts.VersionCatalogsExtension
 import org.gradle.api.publish.maven.MavenPublication
@@ -95,9 +97,9 @@ val napiFfiEnabled = boolProperty("project.ffi.napi")
 val ffiNameRaw = providers.gradleProperty("project.ffi.name").getOrElse("Ffi").trim()
 val ffiName = ffiNameRaw.replaceFirstChar { it.uppercase() } // Libc, Png, ...
 val ffiNameLower = ffiNameRaw.lowercase() // libc, png, ...
-val ffiDefFile = "src/nativeInterop/cinterop/$ffiName.def"
+val ffiDefFile = "src/native/interop/cinterop/$ffiName.def"
 val ffiWrapperBase = "${ffiNameLower}_wrapper" // libc_wrapper
-val ffiNapiDir = "native/node-$ffiNameLower" // native/node-libc
+val ffiNapiDir = "src/js/node-$ffiNameLower/dist" // src/js/node-libc/dist
 val ffiNpmPackage = "@kotlinmania/$ffiNameLower-native-bindings" // @kotlinmania/libc-native-bindings
 
 if (nativeFfiEnabled || jvmFfiEnabled || napiFfiEnabled) {
@@ -143,12 +145,7 @@ configurations.configureEach {
         exclude(group = "org.jetbrains", module = "annotations")
     }
     if (name == "swiftExportClasspath") {
-        dependencies.add(projectDependencyHandler.create("org.jetbrains.kotlin:swift-export-embeddable:$kotlinVersion"))
-        dependencies.add(
-            projectDependencyHandler.create(
-                "org.jetbrains.intellij.deps.kotlinx:kotlinx-coroutines-core-jvm:$intellijCoroutinesVersion",
-            ),
-        )
+        dependencies.add(projectDependencyHandler.create("io.github.kotlinmania:swift-export-embeddable:2.4.20-km.4"))
     }
 }
 
@@ -407,7 +404,7 @@ kotlin {
 
     // Default hierarchy plus a named posix group: shared POSIX code for every
     // native target except mingw (Apple, Linux, Android Native) lives in
-    // src/posixMain and src/posixTest as real shared source sets.
+    // src/native/posix/posixMain and src/native/posix/posixTest as real shared source sets.
     applyDefaultHierarchyTemplate {
         common {
             group("native") {
@@ -575,13 +572,13 @@ kotlin {
     // Kotlin/Native-downloaded toolchain, Linux via host clang or the konan
     // GCC cross-archive, MinGW via the konan msys2 toolchain). It then wires
     // the generated static library into the cinterop definition read from
-    // src/nativeInterop/cinterop/${ffiName}.def so the wrapper's function
+    // src/native/interop/cinterop/${ffiName}.def so the wrapper's function
     // bodies are available to the Kotlin bindings as `import ${ffiNameLower}.*`.
     //
     // Host-capability fallbacks: if the cross toolchain for a target is not
     // installed on this host (e.g. linuxArm64 from macOS without the GCC
     // archive downloaded), the task falls back to a pre-built archive at
-    // src/nativeInterop/cinterop/targets/<konan_target>/${ffiWrapperBase}.a,
+    // src/native/interop/cinterop/targets/<konan_target>/${ffiWrapperBase}.a,
     // and fails loudly if neither is available.
     // ========================================================================
     if (nativeFfiEnabled) {
@@ -614,8 +611,8 @@ kotlin {
                 tasks.register(wrapperTaskName) {
                     group = "build"
                     description = "Compiles $ffiWrapperBase.c into a static library for $konanTargetName"
-                    val cSource = file("src/nativeInterop/cinterop/$ffiWrapperBase.c")
-                    val hSource = file("src/nativeInterop/cinterop/$ffiWrapperBase.h")
+                    val cSource = file("src/native/interop/cinterop/$ffiWrapperBase.c")
+                    val hSource = file("src/native/interop/cinterop/$ffiWrapperBase.h")
                     val outDir =
                         layout.buildDirectory
                             .dir("cinterop-targets/$konanTargetName")
@@ -704,8 +701,8 @@ kotlin {
                                             commandLine(arBin.absolutePath, "rcs", outFile.absolutePath, tempObj.absolutePath)
                                         }.assertNormalExitValue()
                                 } else {
-                                    val prebuilt = file("src/nativeInterop/cinterop/targets/$konanTargetName/$ffiWrapperBase.a")
-                                    val fallbackPrebuilt = file("src/nativeInterop/cinterop/$ffiWrapperBase.a")
+                                    val prebuilt = file("src/native/interop/cinterop/targets/$konanTargetName/$ffiWrapperBase.a")
+                                    val fallbackPrebuilt = file("src/native/interop/cinterop/$ffiWrapperBase.a")
                                     if (prebuilt.exists()) {
                                         prebuilt.copyTo(outFile, overwrite = true)
                                     } else if (fallbackPrebuilt.exists()) {
@@ -745,11 +742,11 @@ kotlin {
                                                 commandLine(llvmAr.absolutePath, "rcs", outFile.absolutePath, tempObj.absolutePath)
                                             }.assertNormalExitValue()
                                     } else {
-                                        val prebuilt = file("src/nativeInterop/cinterop/targets/$konanTargetName/$ffiWrapperBase.a")
+                                        val prebuilt = file("src/native/interop/cinterop/targets/$konanTargetName/$ffiWrapperBase.a")
                                         if (prebuilt.exists()) prebuilt.copyTo(outFile, overwrite = true)
                                     }
                                 } else {
-                                    val prebuilt = file("src/nativeInterop/cinterop/targets/$konanTargetName/$ffiWrapperBase.a")
+                                    val prebuilt = file("src/native/interop/cinterop/targets/$konanTargetName/$ffiWrapperBase.a")
                                     if (prebuilt.exists()) prebuilt.copyTo(outFile, overwrite = true)
                                 }
                             }
@@ -780,17 +777,17 @@ kotlin {
                                                 commandLine(llvmAr.absolutePath, "rcs", outFile.absolutePath, tempObj.absolutePath)
                                             }.assertNormalExitValue()
                                     } else {
-                                        val prebuilt = file("src/nativeInterop/cinterop/targets/mingw_x64/$ffiWrapperBase.a")
+                                        val prebuilt = file("src/native/interop/cinterop/targets/mingw_x64/$ffiWrapperBase.a")
                                         if (prebuilt.exists()) prebuilt.copyTo(outFile, overwrite = true)
                                     }
                                 } else {
-                                    val prebuilt = file("src/nativeInterop/cinterop/targets/mingw_x64/$ffiWrapperBase.a")
+                                    val prebuilt = file("src/native/interop/cinterop/targets/mingw_x64/$ffiWrapperBase.a")
                                     if (prebuilt.exists()) prebuilt.copyTo(outFile, overwrite = true)
                                 }
                             }
 
                             else -> {
-                                val prebuilt = file("src/nativeInterop/cinterop/targets/$konanTargetName/$ffiWrapperBase.a")
+                                val prebuilt = file("src/native/interop/cinterop/targets/$konanTargetName/$ffiWrapperBase.a")
                                 if (prebuilt.exists()) prebuilt.copyTo(outFile, overwrite = true)
                             }
                         }
@@ -1312,7 +1309,7 @@ tasks.register("setupAndroidSdk") {
 // ============================================================================
 // JNI — JVM C bindings. Gated by project.ffi.jvm=true.
 // ----------------------------------------------------------------------------
-// Compiles src/jvmMain/c/${ffiNameLower}_jni.c into a shared library with
+// Compiles src/jvm/jvmMain/c/${ffiNameLower}_jni.c into a shared library with
 // the host clang and wires the resulting directory into
 // -Djava.library.path for jvmTest, so `System.loadLibrary(...)` in the
 // internal `<Lib>Jni` bridge resolves. Transliterated from libc-kotlin's
@@ -1323,7 +1320,7 @@ if (jvmFfiEnabled) {
         tasks.register("compile${ffiName}Jni") {
             group = "build"
             description = "Compiles ${ffiNameLower}_jni.c into a shared library for JVM JNI binding"
-            val cSource = file("src/jvmMain/c/${ffiNameLower}_jni.c")
+            val cSource = file("src/jvm/jvmMain/c/${ffiNameLower}_jni.c")
             val outDir =
                 layout.buildDirectory
                     .dir("natives")
@@ -1354,7 +1351,8 @@ if (jvmFfiEnabled) {
                 val javaInclude = File(javaHome, "include")
                 val javaOsInclude = File(javaInclude, osInclude)
 
-                if (javaInclude.exists()) {
+                check(!outFile.exists() || outFile.delete()) { "Cannot remove old JNI artifact: $outFile" }
+                if (javaInclude.resolve("jni.h").isFile && javaOsInclude.resolve("jni_md.h").isFile) {
                     val execOps = project.serviceOf<ExecOperations>()
                     try {
                         val cmd =
@@ -1378,13 +1376,16 @@ if (jvmFfiEnabled) {
                                 commandLine(cmd)
                             }.assertNormalExitValue()
                     } catch (e: Exception) {
-                        logger.warn("Could not compile ${ffiNameLower}_jni with host clang: ${e.message}")
+                        throw GradleException("Could not compile ${ffiNameLower}_jni with host clang", e)
                     }
+                    check(outFile.isFile && outFile.length() > 0L) { "JNI compiler produced no artifact: $outFile" }
+                } else {
+                    throw GradleException("JNI headers are required at $javaInclude and $javaOsInclude")
                 }
             }
         }
 
-    tasks.named<Test>("jvmTest") {
+    tasks.withType<Test>().matching { it.name == "jvmTest" || it.name == "testAndroidHostTest" }.configureEach {
         dependsOn(compileFfiJni)
         systemProperty(
             "java.library.path",
@@ -1399,26 +1400,70 @@ if (jvmFfiEnabled) {
 // ============================================================================
 // N-API — JS/WASM C bindings. Gated by project.ffi.napi=true.
 // ----------------------------------------------------------------------------
-// Builds the native/node-${ffiNameLower}/ addon via node-gyp and copies it
+// Builds the src/js/node-${ffiNameLower}/dist/ addon with the Java builder and copies it
 // into the JS test runtime's node_modules so the Kotlin-side @JsModule
 // declaration resolves. Transliterated from libc-kotlin's buildNodeLibc/
 // copyNodeLibc with the lib name and npm package parameterized.
 // ============================================================================
 if (napiFfiEnabled) {
-    val buildNodeFfi =
-        tasks.register<Exec>("buildNode$ffiName") {
+    val nodeExecutable = rootProject.extensions.getByType<NodeJsEnvSpec>().executable
+    val installNodeFfiHeaders =
+        tasks.register<Exec>("installNode$ffiName" + "Headers") {
             group = "build"
-            description = "Builds the native node-$ffiNameLower N-API addon via node-gyp"
+            description = "Installs the N-API C++ header dependency with package scripts disabled."
+            dependsOn(rootProject.tasks.named("kotlinNodeJsSetup"))
             workingDir = file(ffiNapiDir)
-            val isWindows =
-                org.gradle.internal.os.OperatingSystem
-                    .current()
-                    .isWindows
-            if (isWindows) {
-                commandLine("cmd", "/c", "npm install --ignore-scripts && npx node-gyp configure && npx node-gyp build")
-            } else {
-                commandLine("sh", "-c", "npm install --ignore-scripts && npx node-gyp configure && npx node-gyp build")
+            doFirst {
+                val node = File(nodeExecutable.get())
+                val npm =
+                    if (System.getProperty("os.name").startsWith("Windows")) {
+                        File(node.parentFile, "node_modules/npm/bin/npm-cli.js")
+                    } else {
+                        File(node.parentFile.parentFile, "lib/node_modules/npm/bin/npm-cli.js")
+                    }
+                val scratch =
+                    layout.buildDirectory
+                        .dir("tmp/node-ffi-npm")
+                        .get()
+                        .asFile
+                        .apply { mkdirs() }
+                environment("TMPDIR", scratch.absolutePath)
+                environment("TMP", scratch.absolutePath)
+                environment("TEMP", scratch.absolutePath)
+                commandLine(
+                    listOf(
+                        node.absolutePath,
+                        npm.absolutePath,
+                        if (file("$ffiNapiDir/package-lock.json").isFile) "ci" else "install",
+                        "--ignore-scripts",
+                        "--omit=dev",
+                        "--no-audit",
+                        "--no-fund",
+                    ) +
+                        if (gradle.startParameter.isOffline) listOf("--offline") else emptyList(),
+                )
             }
+        }
+    val buildNodeFfi =
+        tasks.register<BuildToolTask>("buildNode$ffiName") {
+            group = "build"
+            description = "Builds the native node-$ffiNameLower N-API addon with its declared binding settings."
+            dependsOn(installNodeFfiHeaders)
+            toolClass.set(NodeFfiBuilder::class.java.name)
+            arguments.addAll(
+                "--project-dir",
+                projectDir.absolutePath,
+                "--addon-dir",
+                file(ffiNapiDir).absolutePath,
+                "--build-dir",
+                layout.buildDirectory
+                    .get()
+                    .asFile.absolutePath,
+                "--node-version",
+                nodeVersion,
+            )
+            arguments.addAll(nodeExecutable.map { listOf("--node", it) })
+            if (gradle.startParameter.isOffline) arguments.add("--offline")
         }
 
     val copyNodeFfi =
@@ -1473,13 +1518,13 @@ gradle.includedBuilds.forEach { ib ->
             val copyIbNode =
                 tasks.register<Copy>("copyIncludedNode$ibFfiName") {
                     dependsOn(ib.task(":buildNode$ibFfiName"))
-                    from(File(ib.projectDir, "native/node-$ibFfiLower"))
+                    from(File(ib.projectDir, "src/js/node-$ibFfiLower/dist"))
                     into(layout.buildDirectory.dir("js/node_modules/@kotlinmania/$ibFfiLower-native-bindings"))
                 }
             val copyIbWasmNode =
                 tasks.register<Copy>("copyIncludedWasmNode$ibFfiName") {
                     dependsOn(ib.task(":buildNode$ibFfiName"))
-                    from(File(ib.projectDir, "native/node-$ibFfiLower"))
+                    from(File(ib.projectDir, "src/js/node-$ibFfiLower/dist"))
                     into(layout.buildDirectory.dir("wasm/node_modules/@kotlinmania/$ibFfiLower-native-bindings"))
                 }
             tasks.matching { it.name.startsWith("jsNodeTest") || it.name.startsWith("wasmJsNodeTest") }.configureEach {
@@ -1579,7 +1624,6 @@ tasks.register("swiftExportSmokeTest") {
                 commandLine(
                     "./gradlew",
                     "embedSwiftExportForXcode",
-                    "-Dorg.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g",
                     "--no-configuration-cache",
                     "--no-daemon",
                     "--console=plain",
@@ -1600,13 +1644,13 @@ tasks.register("swiftExportSmokeTest") {
 
         execOperations
             .exec {
-                workingDir = layout.projectDirectory.dir("swift-test-harness").asFile
+                workingDir = layout.projectDirectory.dir("src/swift/swift-test-harness").asFile
                 commandLine("swift", "package", "reset")
             }.assertNormalExitValue()
 
         execOperations
             .exec {
-                workingDir = layout.projectDirectory.dir("swift-test-harness").asFile
+                workingDir = layout.projectDirectory.dir("src/swift/swift-test-harness").asFile
                 commandLine("swift", "test")
             }.assertNormalExitValue()
     }
@@ -1680,3 +1724,107 @@ val fullTargetBuildTaskNames =
 tasks.named("build") {
     dependsOn(fullTargetBuildTaskNames)
 }
+
+// Template source layout; custom source-set names and dependency edges remain project-owned.
+kotlin {
+    sourceSets.configureEach {
+        val sourceDirectories = mapOf(
+            "androidDeviceTest" to "src/android/jvm/androidDeviceTest",
+            "androidHostTest" to "src/android/jvm/androidHostTest",
+            "androidMain" to "src/android/jvm/androidMain",
+            "androidNativeArm32Main" to "src/android/native/androidNativeArm32Main",
+            "androidNativeArm64Main" to "src/android/native/androidNativeArm64Main",
+            "androidNativeArm64Test" to "src/android/native/androidNativeArm64Test",
+            "androidNativeMain" to "src/android/native/androidNativeMain",
+            "androidNativeTest" to "src/android/native/androidNativeTest",
+            "androidNativeX64Main" to "src/android/native/androidNativeX64Main",
+            "androidNativeX64Test" to "src/android/native/androidNativeX64Test",
+            "androidNativeX86Main" to "src/android/native/androidNativeX86Main",
+            "androidTest" to "src/android/jvm/androidTest",
+            "apple64Main" to "src/apple/apple64Main",
+            "apple64Test" to "src/apple/apple64Test",
+            "appleLeafMain" to "src/apple/appleLeafMain",
+            "appleMain" to "src/apple/appleMain",
+            "appleTest" to "src/apple/appleTest",
+            "blockingMain" to "src/common/blockingMain",
+            "blockingTest" to "src/common/blockingTest",
+            "browserMain" to "src/js/browserMain",
+            "browserTest" to "src/js/browserTest",
+            "commonBenchmark" to "src/common/commonBenchmark",
+            "commonMain" to "src/common/commonMain",
+            "commonTest" to "src/common/commonTest",
+            "desktopMain" to "src/common/desktopMain",
+            "filesystemTest" to "src/common/filesystemTest",
+            "hostNativeTest" to "src/native/hostNativeTest",
+            "hostSystemMain" to "src/common/hostSystemMain",
+            "hostSystemTest" to "src/common/hostSystemTest",
+            "iosArm64Main" to "src/apple/ios/iosArm64Main",
+            "iosArm64Test" to "src/apple/ios/iosArm64Test",
+            "iosMain" to "src/apple/ios/iosMain",
+            "iosSimulatorArm64Main" to "src/apple/ios/iosSimulatorArm64Main",
+            "iosSimulatorArm64Test" to "src/apple/ios/iosSimulatorArm64Test",
+            "iosTest" to "src/apple/ios/iosTest",
+            "iosX64Main" to "src/apple/ios/iosX64Main",
+            "jsMain" to "src/js/jsMain",
+            "jsTest" to "src/js/jsTest",
+            "jvmAndAndroidMain" to "src/common/jvmAndAndroidMain",
+            "jvmAndAndroidTest" to "src/common/jvmAndAndroidTest",
+            "jvmBenchmark" to "src/jvm/jvmBenchmark",
+            "jvmConsumerTest" to "src/jvm/jvmConsumerTest",
+            "jvmMain" to "src/jvm/jvmMain",
+            "jvmTest" to "src/jvm/jvmTest",
+            "linuxArm64Main" to "src/native/linux/linuxArm64Main",
+            "linuxArm64Test" to "src/native/linux/linuxArm64Test",
+            "linuxLikeMain" to "src/native/linux/linuxLikeMain",
+            "linuxMain" to "src/native/linux/linuxMain",
+            "linuxTest" to "src/native/linux/linuxTest",
+            "linuxX64Main" to "src/native/linux/linuxX64Main",
+            "linuxX64Test" to "src/native/linux/linuxX64Test",
+            "macosArm64Main" to "src/apple/macos/macosArm64Main",
+            "macosArm64Test" to "src/apple/macos/macosArm64Test",
+            "macosMain" to "src/apple/macos/macosMain",
+            "macosTest" to "src/apple/macos/macosTest",
+            "macosX64Main" to "src/apple/macos/macosX64Main",
+            "mingwMain" to "src/native/mingw/mingwMain",
+            "mingwTest" to "src/native/mingw/mingwTest",
+            "mingwX64Main" to "src/native/mingw/mingwX64Main",
+            "mingwX64Test" to "src/native/mingw/mingwX64Test",
+            "nativeMain" to "src/native/nativeMain",
+            "nativeTest" to "src/native/nativeTest",
+            "nodeMain" to "src/js/nodeMain",
+            "nodeTest" to "src/js/nodeTest",
+            "nonPosixMain" to "src/native/nonPosixMain",
+            "nonWinMain" to "src/native/nonWinMain",
+            "posixMain" to "src/native/posix/posixMain",
+            "posixTest" to "src/native/posix/posixTest",
+            "tvosArm64Main" to "src/apple/tvos/tvosArm64Main",
+            "tvosArm64Test" to "src/apple/tvos/tvosArm64Test",
+            "tvosMain" to "src/apple/tvos/tvosMain",
+            "tvosSimulatorArm64Main" to "src/apple/tvos/tvosSimulatorArm64Main",
+            "tvosSimulatorArm64Test" to "src/apple/tvos/tvosSimulatorArm64Test",
+            "tvosTest" to "src/apple/tvos/tvosTest",
+            "wasmJsMain" to "src/js/wasm/wasmJsMain",
+            "wasmJsTest" to "src/js/wasm/wasmJsTest",
+            "wasmWasiMain" to "src/js/wasm/wasmWasiMain",
+            "wasmWasiTest" to "src/js/wasm/wasmWasiTest",
+            "watchosArm32Main" to "src/apple/watchos/watchosArm32Main",
+            "watchosArm64Main" to "src/apple/watchos/watchosArm64Main",
+            "watchosDeviceArm64Main" to "src/apple/watchos/watchosDeviceArm64Main",
+            "watchosDeviceArm64Test" to "src/apple/watchos/watchosDeviceArm64Test",
+            "watchosMain" to "src/apple/watchos/watchosMain",
+            "watchosSimulatorArm64Main" to "src/apple/watchos/watchosSimulatorArm64Main",
+            "watchosSimulatorArm64Test" to "src/apple/watchos/watchosSimulatorArm64Test",
+            "watchosTest" to "src/apple/watchos/watchosTest",
+            "webMain" to "src/js/webMain",
+            "webTest" to "src/js/webTest",
+        )
+        val sourceRoot = sourceDirectories[name] ?: "src/$name"
+        kotlin.setSrcDirs(kotlin.srcDirs.filter { it != file("src/$name/kotlin") && it != file("$sourceRoot/kotlin") } + file("$sourceRoot/kotlin"))
+        resources.setSrcDirs(resources.srcDirs.filter { it != file("src/$name/resources") && it != file("$sourceRoot/resources") } + file("$sourceRoot/resources"))
+    }
+}
+
+// Match the template policy for compiler-generated Swift Export main sources.
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinNativeCompile>()
+    .matching { it.name.startsWith("compileSwiftExportMain") }
+    .configureEach { compilerOptions.freeCompilerArgs.add("-Xwarning-level=UNCHECKED_CAST:disabled") }

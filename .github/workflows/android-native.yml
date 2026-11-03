@@ -17,13 +17,13 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v6.0.1
+        uses: actions/setup-java@v6.1.0
         with:
           distribution: zulu
           java-version: '21'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6.3.0
+        uses: gradle/actions/setup-gradle@v6.4.0
 
       # The 64-bit androidNative* targets cross-compile on any host (32-bit retired).
       # Kotlin/Native test binaries are built by the full target gate; this workflow provides
