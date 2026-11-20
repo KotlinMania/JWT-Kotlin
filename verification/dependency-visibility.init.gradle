@@ -1,0 +1,159 @@
+import groovy.json.JsonOutput
+import java.security.MessageDigest
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier
+
+def sha256 = { File file ->
+    def digest = MessageDigest.getInstance('SHA-256')
+    file.withInputStream { input ->
+        byte[] buffer = new byte[65536]
+        int count
+        while ((count = input.read(buffer)) != -1) digest.update(buffer, 0, count)
+    }
+    digest.digest().encodeHex().toString()
+}
+def fileIdentity = { File file ->
+    if (file.isFile()) return [sha256: sha256(file)]
+    if (!file.isDirectory()) return [missing: true]
+    def files = []
+    file.eachFileRecurse(groovy.io.FileType.FILES) { files.add(it) }
+    files.sort { file.toPath().relativize(it.toPath()).toString() }
+    def digest = MessageDigest.getInstance('SHA-256')
+    files.each { child ->
+        digest.update(file.toPath().relativize(child.toPath()).toString().replace('\\', '/').getBytes('UTF-8'))
+        digest.update((byte) 0)
+        digest.update(sha256(child).getBytes('UTF-8'))
+        digest.update((byte) 10)
+    }
+    File manifest = new File(file, 'default/manifest')
+    [treeSha256: digest.digest().encodeHex().toString(), fileCount: files.size(),
+     klibManifestSha256: manifest.isFile() ? sha256(manifest) : null]
+}
+def attributes = { container ->
+    container.keySet().collectEntries { key -> [(key.name): String.valueOf(container.getAttribute(key))] }
+}
+gradle.projectsEvaluated {
+    allprojects { project ->
+        def kotlin = project.extensions.findByName('kotlin')
+        if (kotlin == null || !kotlin.hasProperty('targets')) return
+        def report = project.layout.file(project.providers.gradleProperty('verification.dependency.report').map { project.file(it) }.orElse(project.layout.buildDirectory.file('reports/dependency-visibility.json').map { it.asFile }))
+        project.tasks.register('verifyDependencyVisibility') { audit ->
+            audit.group = 'verification'
+            audit.description = 'Records effective source inheritance, selected resolved artifacts and Native FFI producer edges'
+            audit.outputs.file(report)
+            audit.outputs.upToDateWhen { false }
+            audit.doLast {
+                def selected = project.providers.gradleProperty('verification.dependency.configurations').orElse('').get().split(',').findAll { it }
+                if (selected.isEmpty()) throw new GradleException('Select explicit configurations using verification.dependency.configurations')
+                def errors = []
+                def common = project.configurations.findAll { it.name in ['commonMainApi', 'commonMainImplementation', 'commonMainCompileOnly', 'commonMainRuntimeOnly'] }.collect { configuration ->
+                    [name: configuration.name, extendsFrom: configuration.extendsFrom*.name,
+                     dependencies: configuration.dependencies.collect { [group: it.group, name: it.name, version: it.version] },
+                     constraints: configuration.dependencyConstraints.collect { [group: it.group, name: it.name, version: it.version] }]
+                }
+                def sourceSets = kotlin.sourceSets.collect { source ->
+                    [name: source.name, dependsOn: source.dependsOn*.name,
+                     kotlinRoots: source.kotlin.srcDirs*.absolutePath]
+                }
+                def targets = kotlin.targets.collect { target ->
+                    def compilations = target.compilations.collect { compilation ->
+                        def names = compilation.allKotlinSourceSets*.name
+                        if (compilation.name == 'main' && !names.contains('commonMain')) errors.add("${target.name}/main omits commonMain")
+                        if (compilation.name.toLowerCase().contains('test') && !names.contains('commonTest')) errors.add("${target.name}/${compilation.name} omits commonTest")
+                        [name: compilation.name, defaultSourceSet: compilation.defaultSourceSet.name, allKotlinSourceSets: names]
+                    }
+                    def row = [name: target.name, platformType: target.platformType.toString(), compilations: compilations]
+                    if (target.platformType.toString() == 'native') {
+                        row.konanTarget = target.konanTarget.name
+                        def main = target.compilations.getByName('main')
+                        def mainNames = main.allKotlinSourceSets*.name
+                        if (target.konanTarget.name.startsWith('mingw')) {
+                            if (mainNames.contains('posixMain')) errors.add("${target.name} unexpectedly inherits posixMain")
+                        } else if (project.kotlin.sourceSets.findByName('posixMain') != null && !mainNames.contains('posixMain')) {
+                            errors.add("${target.name} omits explicitly configured posixMain")
+                        }
+                        row.cinterops = main.cinterops.collect { interop ->
+                            File definition = interop.definitionFile.orNull?.asFile
+                            def settings = new Properties()
+                            if (definition?.isFile()) definition.withInputStream { settings.load(it) }
+                            else errors.add("${target.name}/${interop.name} has no actual definition file")
+                            def processing = project.tasks.findByName(interop.interopProcessingTaskName)
+                            def producer = project.tasks.findByName('compile' + project.providers.gradleProperty('project.ffi.name').orElse('').get() + 'WrapperFor' + target.name.capitalize())
+                            def edges = processing == null ? [] : processing.taskDependencies.getDependencies(processing)*.path
+                            if (producer == null) errors.add("${target.name}/${interop.name} has no wrapper producer")
+                            else if (!edges.contains(producer.path)) errors.add("${processing?.path} omits wrapper producer ${producer.path}")
+                            [name: interop.name, definitionFile: definition?.absolutePath,
+                             definitionSha256: definition?.isFile() ? sha256(definition) : null,
+                             definitionProperties: settings.collectEntries { key, value -> [(key.toString()): value.toString()] },
+                             includeDirectories: interop.includeDirs.allHeadersDirs.files*.absolutePath,
+                             compilerOptions: interop.compilerOpts, linkerOptions: interop.linkerOpts, extraOptions: interop.extraOpts,
+                             processingTask: processing?.path, producerEdges: edges,
+                             wrapperOutputs: producer == null ? [] : producer.outputs.files.files*.absolutePath]
+                        }
+                        row.binaries = target.binaries.collect { binary ->
+                            [name: binary.name, linkerOptions: binary.linkerOpts, compilerArguments: binary.freeCompilerArgs]
+                        }
+                    }
+                    row
+                }
+                def resolved = selected.collect { name ->
+                    def configuration = project.configurations.findByName(name)
+                    if (configuration == null || !configuration.canBeResolved) {
+                        errors.add("Unresolvable selected configuration ${name}")
+                        return [name: name, status: 'unresolvable']
+                    }
+                    try {
+                        def artifacts = configuration.incoming.artifactView { }.artifacts.artifacts.collect { artifact ->
+                            def component = artifact.id.componentIdentifier
+                            [component: component.displayName,
+                             coordinates: component instanceof ModuleComponentIdentifier ? [group: component.group, module: component.module, version: component.version] : null,
+                             variantAttributes: attributes(artifact.variant.attributes), file: artifact.file.absolutePath,
+                             identity: fileIdentity(artifact.file),
+                             kind: artifact.file.isDirectory() ? 'unpacked-directory' : artifact.file.name.tokenize('.').last()]
+                        }
+                        [name: name, role: name == 'swiftExportClasspathResolvable' ? 'compiler-tooling' : 'selected-library-configuration', status: 'resolved', attributes: attributes(configuration.attributes), artifacts: artifacts]
+                    } catch (Exception failure) {
+                        errors.add("${name}: ${failure.message}")
+                        [name: name, status: 'failed', error: failure.message]
+                    }
+                }
+                def packaging = []
+                def publishing = project.extensions.findByName('publishing')
+                if (publishing != null) publishing.publications.each { publication ->
+                    packaging.add([publication: publication.name, role: publication.name == 'kotlinMultiplatform' ? 'kmp-root-metadata-and-platform-mapping' : 'platform-publication', group: publication.groupId, module: publication.artifactId, version: publication.version,
+                        artifacts: publication.artifacts.collect { artifact ->
+                            File file = artifact.file
+                            [file: file.absolutePath, extension: artifact.extension, classifier: artifact.classifier,
+                             exists: file.isFile(), sha256: file.isFile() ? sha256(file) : null]
+                        }])
+                }
+                def toolingFiles = resolved.findAll { it.role == 'compiler-tooling' }.collectMany { it.artifacts*.file }.toSet()
+                def swiftTaskName = project.providers.gradleProperty('verification.dependency.swiftTask').orElse('macosArm64DebugSwiftExport').get()
+                def swiftTask = project.tasks.findByName(swiftTaskName)
+                if (swiftTask == null) errors.add("Selected Swift export task ${swiftTaskName} is absent; unsupported layout")
+                def swiftInputs = swiftTask == null ? [status: 'task-absent'] : [task: swiftTask.path,
+                    declaredInputFiles: swiftTask.inputs.files.files.collect { file ->
+                        [file: file.absolutePath, role: toolingFiles.contains(file.absolutePath) ? 'compiler-tooling' : 'export-task-input',
+                         identity: fileIdentity(file)]
+                    }, status: 'configured-input-closure-only-not-execution']
+                def nativeHome = project.providers.gradleProperty('kotlin.native.home').orNull
+                File nativeProperties = nativeHome == null ? null : new File(nativeHome, 'konan/konan.properties')
+                def toolchainProperties = new Properties()
+                if (nativeProperties?.isFile()) nativeProperties.withInputStream { toolchainProperties.load(it) }
+                def toolchain = [explicitNativeHome: nativeHome,
+                    konanPropertiesSha256: nativeProperties?.isFile() ? sha256(nativeProperties) : null,
+                    configuredTargetValues: toolchainProperties.findAll { key, value -> ['targetSysRoot.', 'gccToolchain.', 'targetToolchain.', 'llvmHome.'].any { key.toString().startsWith(it) } },
+                    valuesAreCompilerConfigurationNotObservedArgv: true]
+                def output = [schemaVersion: 1, project: project.path, sourceSets: sourceSets, declaredCommonDependencies: common,
+                    nativeToolchain: toolchain, swiftExportInputs: swiftInputs,
+                    targets: targets, selectedResolvedConfigurations: resolved, declaredPublications: packaging, errors: errors,
+                    limits: ['Unselected configurations are not resolved.', 'Absent publication files are unbuilt, not verified published artifacts.',
+                             'Swift compiler tooling classpath is separate from the Native exported-library closure.',
+                             'Configured source/FFI edges do not prove compiler, linker or per-target runtime acceptance.']]
+                File destination = report.get().asFile
+                destination.parentFile.mkdirs()
+                destination.text = JsonOutput.prettyPrint(JsonOutput.toJson(output)) + '\n'
+                if (!errors.isEmpty()) throw new GradleException('Dependency visibility gaps: ' + errors.join('; '))
+            }
+        }
+    }
+}

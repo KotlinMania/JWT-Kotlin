@@ -39,12 +39,30 @@ public final class SwiftExportSupport {
     public static void configure(Project project, String swiftExportModuleName) {
         Project rootProject = project.getRootProject();
         String workerMaxHeapSize = prop(project, "project.swiftExport.workerMaxHeapSize", "4g");
+        long maxShardBytes = Long.parseLong(prop(
+            project,
+            "project.swiftExport.maxShardBytes",
+            Long.toString(SwiftExportSharder.DEFAULT_MAX_SHARD_BYTES)
+        ));
 
         // Wrap SwiftExportTask's WorkerExecutor so the isolated Gradle Worker Daemon
-        // starts with `workerMaxHeapSize` (default 4g) instead of Gradle's 512 MB default.
+        // starts with `workerMaxHeapSize` (default 4g) instead of Gradle's 512 MB default,
+        // and shard oversized generated .kt/.h/.swift outputs into <= 1 MiB shards immediately.
         project.getTasks().matching(task ->
             task.getClass().getName().startsWith("org.jetbrains.kotlin.gradle.plugin.mpp.apple.swiftexport.tasks.SwiftExportTask")
-        ).configureEach(task -> task.doFirst(t -> wrapWorkerExecutor(t, workerMaxHeapSize)));
+        ).configureEach(task -> {
+            task.doFirst(t -> wrapWorkerExecutor(t, workerMaxHeapSize));
+            task.doLast(t -> {
+                File swiftExportDir = project.getLayout().getBuildDirectory().dir("SwiftExport").get().getAsFile();
+                BuildToolTask.invoke(
+                    SwiftExportSharder.class.getName(),
+                    "--swift-export-root",
+                    swiftExportDir.getAbsolutePath(),
+                    "--max-bytes",
+                    Long.toString(maxShardBytes)
+                );
+            });
+        });
 
         File strictSwiftConfig = new File(rootProject.getProjectDir(), "verification/strict-swift.xcconfig");
 
@@ -65,6 +83,13 @@ public final class SwiftExportSupport {
                     new File(manifest.getParentFile(), "swift5-manifest-receipt.json").getAbsolutePath()
                 );
             }
+            BuildToolTask.invoke(
+                SwiftExportSharder.class.getName(),
+                "--dir",
+                spmDir.getAbsolutePath(),
+                "--max-bytes",
+                Long.toString(maxShardBytes)
+            );
         }));
 
         project.getTasks().matching(task ->
@@ -128,10 +153,13 @@ public final class SwiftExportSupport {
                     project.getGradle().getStartParameter().getProjectProperties().forEach((k, v) ->
                         exportCommand.add("-P" + k + "=" + v)
                     );
-                    String localMaven = project.getGradle().getStartParameter().getSystemPropertiesArgs().get("maven.repo.local");
-                    if (localMaven != null) {
-                        exportCommand.add("-Dmaven.repo.local=" + localMaven);
-                    }
+                    project.getGradle().getStartParameter().getInitScripts().forEach(initScript -> {
+                        exportCommand.add("--init-script");
+                        exportCommand.add(initScript.getAbsolutePath());
+                    });
+                    project.getGradle().getStartParameter().getSystemPropertiesArgs().forEach((key, value) ->
+                        exportCommand.add("-D" + key + "=" + value)
+                    );
 
                     Map<String, String> env = new LinkedHashMap<>();
                     env.put("BUILT_PRODUCTS_DIR", configBuildDir.getAbsolutePath());

@@ -9,6 +9,7 @@ The implementation still targets the Java 21 toolchain configured in
 | --- | --- | --- |
 | [NodeFfiBuilder](NodeFfiBuilder.java) | Compiles and links N-API addon binaries from supported binding settings. | The root build registers `buildNode…` tasks using `BuildToolTask`. |
 | [SwiftManifestEnforcer](SwiftManifestEnforcer.java) | Adds a missing macOS platform declaration to a generated Swift package manifest. | The root build invokes it after tasks ending in `generateSPMPackage`. |
+| [SwiftExportSharder](SwiftExportSharder.java) | Shards oversized generated Swift Export `.kt`, `.h`, and `.swift` files into `<= 1 MiB` shards. | Invoked after `SwiftExportTask` and `generateSPMPackage`. |
 | [BuildToolTask](BuildToolTask.java) | Adapts a helper's `run(String...)` method to Gradle task execution. | Supplies class/argument inputs and propagates failures. |
 | [Json](Json.java) | Reads JSON inputs and writes JSON receipts using Gradle's Groovy libraries. | Used by both product builders. |
 
@@ -101,6 +102,20 @@ Swift 6 consumer harness; the receipt records that policy rather than measuring 
 the transformation changes it, and always replaces the receipt. These writes are
 not transactional: a failed receipt write does not undo a successful manifest edit.
 The tokenizer is a limited structural scanner, not a full Swift/Kotlin parser.
+
+## SwiftExportSharder
+
+`SwiftExportSupport` invokes `SwiftExportSharder` immediately after `SwiftExportTask`
+(`--swift-export-root <build/SwiftExport> --max-bytes <N>`, defaulting to `1048576`
+bytes via `project.swiftExport.maxShardBytes`) and defensively on `build/SPMPackage`
+after `generateSPMPackage`.
+
+Any generated `.kt`, `.h`, or `.swift` file larger than `--max-bytes` is split at
+declaration boundaries into `<= 1 MiB` shards (`_bridge_NNNN.kt` / `_objc_NNNN.kt`,
+`_NNNN.h`, and `_NNNN.swift`), module descriptor JSON pointers (`cHeaderBridges` and
+`swiftApi`) are updated to point to the generated shard directories, and the oversized
+monolithic file is deleted immediately so Clang/Swift `DiagnosticBridge` and
+Kotlin/Native never ingest multi-megabyte single-file translation units.
 
 ## BuildToolTask
 

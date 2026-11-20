@@ -2,6 +2,35 @@ name: Build (iOS)
 
 on:
   workflow_call:
+    inputs:
+      platform:
+        type: string
+        required: false
+        default: "all"
+      phase:
+        type: string
+        required: false
+        default: "build-and-test"
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: "iOS target slice"
+        required: false
+        default: "all"
+        type: choice
+        options:
+          - all
+          - iosArm64
+          - iosSimulatorArm64
+      phase:
+        description: "Execution phase"
+        required: false
+        default: "build-and-test"
+        type: choice
+        options:
+          - build-and-test
+          - build-only
+          - test-only
 
 permissions:
   contents: read
@@ -9,6 +38,7 @@ permissions:
 jobs:
   build:
     name: Build and Test (iOS)
+    if: ${{ (inputs.platform || 'all') == 'all' || inputs.platform == 'iosArm64' || inputs.platform == 'iosSimulatorArm64' }}
     runs-on: macos-latest
     permissions:
       contents: read
@@ -25,30 +55,28 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6.4.0
 
-      - name: Build and test iOS targets + XCFramework
-        # build.gradle.kts registers the XCFramework as XCFramework(frameworkName),
-        # where frameworkName = project.frameworkName from gradle.properties. That
-        # property is the single source of truth for the assemble<Name>XCFramework
-        # task name — read it directly; there is no XCFramework("<literal>") to grep.
+      - name: Build iOS targets + XCFramework
+        if: ${{ (inputs.phase || 'build-and-test') != 'test-only' }}
         run: |
           XCF_NAME=$(grep -E '^project\.frameworkName=' gradle.properties | head -1 | cut -d= -f2 | tr -d '[:space:]')
           if [ -z "$XCF_NAME" ]; then
             echo "::error::project.frameworkName is not set in gradle.properties"
             exit 1
           fi
-          echo "XCFramework name: $XCF_NAME → task: assemble${XCF_NAME}XCFramework"
           ./gradlew \
             compileKotlinIosArm64 \
             compileKotlinIosSimulatorArm64 \
-            iosSimulatorArm64Test \
+            iosSimulatorArm64TestBinaries \
             "assemble${XCF_NAME}XCFramework" \
             --no-configuration-cache
 
-      # Native upload-artifact (GitHub-published) makes the test reports
-      # downloadable from the run summary page. `if: success() || failure()`
-      # ensures uploads even when tests fail. Combined with the per-test
-      # testLogging events in build.gradle.kts, the audit trail covers both
-      # raw-log streaming and post-run inspection.
+      - name: Test iOS simulator target (iosSimulatorArm64)
+        if: ${{ (inputs.phase || 'build-and-test') != 'build-only' && ((inputs.platform || 'all') == 'all' || inputs.platform == 'iosSimulatorArm64') }}
+        run: >
+          ./gradlew
+          iosSimulatorArm64Test
+          --no-configuration-cache
+
       - name: Upload test reports (iOS)
         if: success() || failure()
         uses: actions/upload-artifact@v7

@@ -2,6 +2,35 @@ name: Build (tvOS)
 
 on:
   workflow_call:
+    inputs:
+      platform:
+        type: string
+        required: false
+        default: "all"
+      phase:
+        type: string
+        required: false
+        default: "build-and-test"
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: "tvOS target slice"
+        required: false
+        default: "all"
+        type: choice
+        options:
+          - all
+          - tvosArm64
+          - tvosSimulatorArm64
+      phase:
+        description: "Execution phase"
+        required: false
+        default: "build-and-test"
+        type: choice
+        options:
+          - build-and-test
+          - build-only
+          - test-only
 
 permissions:
   contents: read
@@ -9,6 +38,7 @@ permissions:
 jobs:
   build:
     name: Build and Test (tvOS)
+    if: ${{ (inputs.platform || 'all') == 'all' || inputs.platform == 'tvosArm64' || inputs.platform == 'tvosSimulatorArm64' }}
     runs-on: macos-latest
     permissions:
       contents: read
@@ -25,11 +55,19 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6.4.0
 
-      - name: Build and test tvOS targets
+      - name: Build tvOS targets and C wrappers
+        if: ${{ (inputs.phase || 'build-and-test') != 'test-only' }}
         run: >
           ./gradlew
           compileKotlinTvosArm64
           compileKotlinTvosSimulatorArm64
+          tvosSimulatorArm64TestBinaries
+          --no-configuration-cache
+
+      - name: Test tvOS simulator target (tvosSimulatorArm64)
+        if: ${{ (inputs.phase || 'build-and-test') != 'build-only' && ((inputs.platform || 'all') == 'all' || inputs.platform == 'tvosSimulatorArm64') }}
+        run: >
+          ./gradlew
           tvosSimulatorArm64Test
           --no-configuration-cache
 

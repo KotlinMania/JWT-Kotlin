@@ -2,13 +2,42 @@ name: Build (Windows)
 
 on:
   workflow_call:
+    inputs:
+      platform:
+        type: string
+        required: false
+        default: "all"
+      phase:
+        type: string
+        required: false
+        default: "build-and-test"
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: "Windows native target slice"
+        required: false
+        default: "mingwX64"
+        type: choice
+        options:
+          - all
+          - mingwX64
+      phase:
+        description: "Execution phase"
+        required: false
+        default: "build-and-test"
+        type: choice
+        options:
+          - build-and-test
+          - build-only
+          - test-only
 
 permissions:
   contents: read
 
 jobs:
   build:
-    name: Build and Test (Windows)
+    name: Build and Test (Windows - mingwX64)
+    if: ${{ (inputs.platform || 'all') == 'all' || inputs.platform == 'mingwX64' }}
     runs-on: windows-latest
     permissions:
       contents: read
@@ -27,7 +56,16 @@ jobs:
         with:
           cache-provider: basic
 
-      - name: Build and test Windows target
+      - name: Build Windows target and C wrapper (mingwX64)
+        if: ${{ (inputs.phase || 'build-and-test') != 'test-only' }}
+        run: >
+          ./gradlew
+          compileKotlinMingwX64
+          mingwX64TestBinaries
+          --no-configuration-cache
+
+      - name: Test Windows target (mingwX64)
+        if: ${{ (inputs.phase || 'build-and-test') != 'build-only' }}
         run: >
           ./gradlew
           mingwX64Test

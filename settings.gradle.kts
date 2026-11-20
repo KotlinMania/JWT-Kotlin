@@ -14,7 +14,6 @@ pluginManagement {
             .getOrElse(false)
     val localRepository =
         if (localMavenValidation) {
-            // Preserve the explicitly isolated consumer-validation repository.
             val localMavenPath = providers.systemProperty("maven.repo.local").orNull
             require(localMavenPath != null && File(localMavenPath).isAbsolute) {
                 "Local Maven validation requires -Dmaven.repo.local=/absolute/path/to/isolated-repository"
@@ -32,7 +31,6 @@ pluginManagement {
             configured
         }
 
-    // Normal builds and publishToMavenLocal share the file-configured location.
     System.setProperty("maven.repo.local", localRepository.absolutePath)
     settings.extra["mavenLocalEnabled"] = localMaven
     settings.extra["mavenLocalValidation"] = localMavenValidation
@@ -56,9 +54,6 @@ dependencyResolutionManagement {
         require(localMavenPath != null && File(localMavenPath).isAbsolute) {
             "Local Maven validation requires -Dmaven.repo.local=/absolute/path/to/isolated-repository"
         }
-        // Kotlin's Node/Yarn setup temporarily adds project repositories.
-        // Keep dependency resolution in settings, with their distribution
-        // repositories declared below, instead of rejecting those additions.
         repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
     } else {
         repositoriesMode.set(RepositoriesMode.PREFER_PROJECT)
@@ -89,11 +84,16 @@ dependencyResolutionManagement {
                 metadataSources { artifact() }
                 content { includeModule("com.yarnpkg", "yarn") }
             }
+            ivy("https://github.com/WebAssembly/binaryen/releases/download") {
+                name = "Binaryen Distributions"
+                patternLayout { artifact("version_[revision]/binaryen-version_[revision]-[classifier].[ext]") }
+                metadataSources { artifact() }
+                content { includeModule("com.github.webassembly", "binaryen") }
+            }
         }
     }
 }
 
-// Keep ordinary project and buildscript resolution in the same local-first mode.
 gradle.beforeProject {
     if (!localMavenValidation) {
         repositories {
@@ -110,4 +110,4 @@ gradle.beforeProject {
     }
 }
 
-rootProject.name = "jwt-kmp"
+rootProject.name = providers.gradleProperty("project.name").get()

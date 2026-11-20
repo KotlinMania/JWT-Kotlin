@@ -14,8 +14,6 @@ public final class IdeSourceSetSupport {
     private IdeSourceSetSupport() {}
 
     public static final Map<String, String> HIERARCHICAL_PATHS = Map.ofEntries(
-            Map.entry("androidNativeArm32Main", "src/android/native/androidNativeArm32Main"),
-            Map.entry("androidNativeX86Main", "src/android/native/androidNativeX86Main"),
             Map.entry("androidTest", "src/android/jvm/androidTest"),
             Map.entry("apple64Main", "src/apple/apple64Main"),
             Map.entry("apple64Test", "src/apple/apple64Test"),
@@ -28,19 +26,15 @@ public final class IdeSourceSetSupport {
             Map.entry("desktopMain", "src/common/desktopMain"),
             Map.entry("filesystemTest", "src/common/filesystemTest"),
             Map.entry("hostNativeTest", "src/native/hostNativeTest"),
-            Map.entry("iosX64Main", "src/apple/ios/iosX64Main"),
             Map.entry("jvmAndAndroidMain", "src/common/jvmAndAndroidMain"),
             Map.entry("jvmAndAndroidTest", "src/common/jvmAndAndroidTest"),
             Map.entry("jvmBenchmark", "src/jvm/jvmBenchmark"),
             Map.entry("jvmConsumerTest", "src/jvm/jvmConsumerTest"),
             Map.entry("linuxLikeMain", "src/native/linux/linuxLikeMain"),
-            Map.entry("macosX64Main", "src/apple/macos/macosX64Main"),
             Map.entry("nodeMain", "src/js/nodeMain"),
             Map.entry("nodeTest", "src/js/nodeTest"),
             Map.entry("nonPosixMain", "src/native/nonPosixMain"),
             Map.entry("nonWinMain", "src/native/nonWinMain"),
-            Map.entry("watchosArm32Main", "src/apple/watchos/watchosArm32Main"),
-            Map.entry("watchosArm64Main", "src/apple/watchos/watchosArm64Main"),
             Map.entry("commonMain", "src/common/commonMain"),
             Map.entry("commonTest", "src/common/commonTest"),
             Map.entry("hostSystemMain", "src/common/hostSystemMain"),

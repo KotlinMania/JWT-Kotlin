@@ -1,5 +1,6 @@
 package io.github.kotlinmania.build;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -63,7 +64,7 @@ public final class NodeFfiBuilder {
     /// Paths are normalized during parsing; existence, real-path containment and runtime version
     /// checks happen later. A null compiler/header/version override selects the documented default.
     private record Options(Path project, Path addon, Path build, String node, String version,
-                           Path headers, String cc, String cxx, String linker, boolean offline) {}
+                           Path headers, String cc, String cxx, String linker, String configuration, boolean offline) {}
 
     /// Resolves target defaults and matching conditions in the supported binding settings.
     ///
@@ -280,7 +281,8 @@ public final class NodeFfiBuilder {
         if (List.of(arguments).contains("--help")) {
             System.out.println("NodeFfiBuilder --project-dir DIR --addon-dir DIR --build-dir DIR"
                     + " [--node EXECUTABLE] [--node-version VERSION] [--headers-dir DIR]"
-                    + " [--cc EXECUTABLE] [--cxx EXECUTABLE] [--linker EXECUTABLE] [--offline]");
+                    + " [--cc EXECUTABLE] [--cxx EXECUTABLE] [--linker EXECUTABLE]"
+                    + " [--configuration Debug|Release] [--debug] [--offline]");
             return 0;
         }
         Path temporary = null;
@@ -299,7 +301,9 @@ public final class NodeFfiBuilder {
                 throw new IllegalArgumentException("Build storage resolves outside the owning project");
             }
             temporary = Files.createTempDirectory(scratch, "compile-");
-            report = options.build().resolve("reports/node-ffi/" + addon.getFileName() + ".json");
+            String reportSuffix = "Debug".equals(options.configuration()) ? "-debug.json" : ".json";
+            report = options.build().resolve("reports/node-ffi/" + addon.getFileName() + reportSuffix);
+            receipt.put("configuration", options.configuration());
             Map<String, Object> runtime = object(Json.parse(execute(List.of(options.node(), "-p",
                     "JSON.stringify({version:process.versions.node,platform:process.platform,arch:process.arch,executable:process.execPath})"),
                     addon, temporary)), "Node runtime");
@@ -341,15 +345,27 @@ public final class NodeFfiBuilder {
             System.err.println("N-API build failed: " + receipt.get("error"));
             return 1;
         } finally {
-            try {
-                if (temporary != null) {
-                    deleteTree(temporary);
-                }
-                if (report != null) {
+            IOException failure = null;
+            if (report != null) {
+                try {
                     Json.write(report, receipt);
+                } catch (IOException exception) {
+                    failure = exception;
                 }
-            } catch (IOException exception) {
-                throw new IllegalStateException("Could not clean or report the project-local N-API build", exception);
+            }
+            if (temporary != null) {
+                try {
+                    deleteTree(temporary);
+                } catch (IOException exception) {
+                    if (failure == null) {
+                        failure = exception;
+                    } else {
+                        failure.addSuppressed(exception);
+                    }
+                }
+            }
+            if (failure != null) {
+                throw new IllegalStateException("Could not clean or report the project-local N-API build", failure);
             }
         }
     }
@@ -388,12 +404,13 @@ public final class NodeFfiBuilder {
             throws IOException, InterruptedException {
         boolean windows = platform.equals("win32");
         boolean mac = platform.equals("darwin");
+        boolean isDebug = "Debug".equals(options.configuration());
         String name = (String) target.get("target_name");
         String product = !windows && name.startsWith("lib") ? name.substring(3) : name;
         if (product.isEmpty()) {
             throw new IllegalArgumentException("Native target produces an empty output name: " + name);
         }
-        Path output = addon.resolve("build/Release/" + product + ".node");
+        Path output = addon.resolve("build/" + options.configuration() + "/" + product + ".node");
         Files.createDirectories(output.getParent());
         if (!output.getParent().toRealPath().startsWith(project)) {
             throw new IllegalArgumentException("Native output resolves outside the owning project");
@@ -408,29 +425,105 @@ public final class NodeFfiBuilder {
         }
         List<String> defines = new ArrayList<>(List.of("NODE_GYP_MODULE_NAME=" + name, "BUILDING_NODE_EXTENSION",
                 "USING_UV_SHARED=1", "USING_V8_SHARED=1", "V8_DEPRECATION_WARNINGS=1", "_LARGEFILE_SOURCE",
-                "_FILE_OFFSET_BITS=64", "__STDC_FORMAT_MACROS", "NDEBUG"));
+                "_FILE_OFFSET_BITS=64", "__STDC_FORMAT_MACROS", isDebug ? "DEBUG" : "NDEBUG"));
+        if (isDebug && !windows) defines.add("_DEBUG");
         defines.addAll(option(target, "defines"));
         defines.removeAll(strings(target.getOrDefault("defines!", List.of()), "defines!"));
         String toolset = String.valueOf(target.getOrDefault("msbuild_toolset", ""));
         if (!toolset.isEmpty() && !toolset.equals("ClangCL")) {
             throw new IllegalArgumentException("Unsupported Windows toolset: " + toolset);
         }
+        Map<String, String> msvcEnv = windows && toolset.isEmpty()
+                ? resolveWindowsMsvcEnvironment(arch, addon, temporary)
+                : Map.of();
         String cc = options.cc() != null ? options.cc() : environmentCompiler("CC", windows ? (toolset.isEmpty() ? "cl.exe" : "clang-cl.exe") : "cc");
         String cxx = options.cxx() != null ? options.cxx() : environmentCompiler("CXX", windows ? (toolset.isEmpty() ? "cl.exe" : "clang-cl.exe") : "c++");
+        if (windows) {
+            cc = resolveWindowsExecutable(cc, msvcEnv);
+            cxx = resolveWindowsExecutable(cxx, msvcEnv);
+        }
         List<Path> objects = new ArrayList<>();
+        List<Path> resolvedSources = new ArrayList<>();
         for (String source : option(target, "sources")) {
-            Path input = resolveInput(addon, source).toRealPath();
-            if (!input.startsWith(project) || !Files.isRegularFile(input)) {
+            Path candidate = resolveInput(addon, source);
+            if (Files.isRegularFile(candidate) && !source.endsWith("_bindings.cpp")) {
+                resolvedSources.add(candidate.toRealPath());
+            } else {
+                Path parentDir = candidate.getParent();
+                if (parentDir != null && Files.isDirectory(parentDir)) {
+                    try (java.util.stream.Stream<Path> stream = Files.list(parentDir)) {
+                        stream.filter(p -> Files.isRegularFile(p) && p.getFileName().toString().endsWith("_bindings.cpp"))
+                              .sorted(Comparator.comparing(p -> p.getFileName().toString()))
+                              .forEach(p -> {
+                                  try {
+                                      resolvedSources.add(p.toRealPath());
+                                  } catch (IOException e) {
+                                      throw new IllegalStateException(e);
+                                  }
+                              });
+                    }
+                }
+                if (resolvedSources.isEmpty() && Files.isRegularFile(candidate)) {
+                    resolvedSources.add(candidate.toRealPath());
+                }
+            }
+        }
+        boolean usesRegistrarHead = false;
+        boolean definesAddonEntry = false;
+        for (Path input : resolvedSources) {
+            String text = Files.readString(input, StandardCharsets.UTF_8);
+            if (text.contains("km_napi_registrar_head")) {
+                usesRegistrarHead = true;
+            }
+            if (text.contains("NAPI_MODULE(") || (text.contains("NODE_API_MODULE(") && !text.contains("#ifdef KM_NAPI_STANDALONE_MODULE"))) {
+                definesAddonEntry = true;
+            }
+        }
+        if (usesRegistrarHead && !definesAddonEntry) {
+            Path syntheticEntry = temporary.resolve("km_napi_entry.cpp");
+            Files.writeString(syntheticEntry,
+                "#include <napi.h>\n" +
+                "struct KmNapiRegistrarNode {\n" +
+                "    void (*register_fn)(Napi::Env, Napi::Object);\n" +
+                "    KmNapiRegistrarNode* next;\n" +
+                "};\n" +
+                "#if defined(__GNUC__) || defined(__clang__)\n" +
+                "__attribute__((visibility(\"hidden\")))\n" +
+                "#endif\n" +
+                "KmNapiRegistrarNode* km_napi_registrar_head = nullptr;\n" +
+                "static Napi::Object KmNapiInitAll(Napi::Env env, Napi::Object exports) {\n" +
+                "    for (KmNapiRegistrarNode* cur = km_napi_registrar_head; cur != nullptr; cur = cur->next) {\n" +
+                "        cur->register_fn(env, exports);\n" +
+                "    }\n" +
+                "    return exports;\n" +
+                "}\n" +
+                "NODE_API_MODULE(NODE_GYP_MODULE_NAME, KmNapiInitAll)\n",
+                StandardCharsets.UTF_8
+            );
+            resolvedSources.add(syntheticEntry.toRealPath());
+        }
+        for (Path input : resolvedSources) {
+            String source = input.getFileName().toString();
+            if ((!input.startsWith(project) && !input.startsWith(temporary.toRealPath())) || !Files.isRegularFile(input)) {
                 throw new IllegalArgumentException("Native source must be a file inside the owning project: " + input);
             }
             boolean cpp = source.endsWith(".cc") || source.endsWith(".cpp") || source.endsWith(".cxx");
-            if (!cpp && !source.endsWith(".c")) {
+            boolean asm = source.endsWith(".S") || source.endsWith(".s");
+            if (!cpp && !asm && !source.endsWith(".c")) {
                 throw new IllegalArgumentException("Unsupported native source language: " + source);
             }
             Path object = temporary.resolve(name + "-" + objects.size() + (windows ? ".obj" : ".o"));
             List<String> command = new ArrayList<>(List.of(cpp ? cxx : cc));
             if (windows) {
-                command.addAll(List.of("/nologo", "/c", "/O2", "/MD", "/W3", cpp ? "/TP" : "/TC"));
+                if (asm && !toolset.equals("ClangCL")) {
+                    throw new IllegalArgumentException("Assembly source on Windows requires ClangCL toolset: " + source);
+                }
+                if (asm) {
+                    command.addAll(List.of("/nologo", "/c"));
+                } else {
+                    command.addAll(List.of("/nologo", "/c", "/utf-8", isDebug ? "/Od" : "/O2", "/MD", "/W3", cpp ? "/TP" : "/TC"));
+                }
+                if (isDebug) command.add("/Z7");
                 if (cpp) {
                     command.add("/std:c++20");
                     String exceptions = "1";
@@ -439,15 +532,33 @@ public final class NodeFfiBuilder {
                                 .get("VCCLCompilerTool"), "VCCLCompilerTool").get("ExceptionHandling"));
                     }
                     command.add(exceptions.equals("2") ? "/EHa" : exceptions.equals("1") ? "/EHsc" : "/EHs-c-");
+                } else if (!asm) {
+                    command.add("/std:c11");
                 }
                 for (String include : includes) command.add("/I" + include);
                 for (String define : defines) command.add("/D" + literal(define));
-                addWindowsFlags(command, option(target, "cflags"));
-                addWindowsFlags(command, option(target, cpp ? "cflags_cc" : "cflags_c"));
+                if (!asm) {
+                    addWindowsFlags(command, option(target, "cflags"));
+                    addWindowsFlags(command, option(target, cpp ? "cflags_cc" : "cflags_c"));
+                }
                 command.addAll(List.of(input.toString(), "/Fo" + object));
+            } else if (asm) {
+                List<String> flags = new ArrayList<>(isDebug ? List.of("-g", "-fPIC") : List.of("-fPIC"));
+                if (mac) {
+                    flags.addAll(List.of("-arch", arch.equals("arm64") ? "arm64" : "x86_64"));
+                    if (xcode.containsKey("MACOSX_DEPLOYMENT_TARGET")) {
+                        flags.add("-mmacosx-version-min=" + literal(string(xcode.get("MACOSX_DEPLOYMENT_TARGET"), "MACOSX_DEPLOYMENT_TARGET")));
+                    }
+                }
+                flags.forEach(flag -> command.add(literal(flag)));
+                for (String include : includes) command.addAll(List.of("-I", include));
+                for (String define : defines) command.add("-D" + literal(define));
+                command.addAll(List.of("-c", input.toString(), "-o", object.toString()));
             } else {
-                List<String> flags = new ArrayList<>(List.of("-O3", "-fPIC", "-pthread"));
-                if (cpp) flags.addAll(List.of("-std=gnu++20", "-fno-rtti", "-fno-exceptions"));
+                List<String> flags = new ArrayList<>(isDebug
+                        ? List.of("-O0", "-g", "-fPIC", "-fvisibility=hidden", "-pthread")
+                        : List.of("-O3", "-fPIC", "-fvisibility=hidden", "-pthread"));
+                if (cpp) flags.addAll(List.of("-std=gnu++20", "-fvisibility-inlines-hidden", "-fno-rtti", "-fno-exceptions"));
                 flags.addAll(option(target, "cflags"));
                 flags.addAll(option(target, cpp ? "cflags_cc" : "cflags_c"));
                 flags.removeAll(strings(target.getOrDefault("cflags!", List.of()), "cflags!"));
@@ -461,13 +572,15 @@ public final class NodeFfiBuilder {
                 for (String define : defines) command.add("-D" + literal(define));
                 command.addAll(List.of("-c", input.toString(), "-o", object.toString()));
             }
-            execute(command, addon, temporary);
+            execute(command, addon, temporary, msvcEnv);
             objects.add(object);
         }
         List<String> link = new ArrayList<>();
         if (windows) {
-            link.add(options.linker() == null ? (toolset.isEmpty() ? "link.exe" : "lld-link.exe") : options.linker());
+            String linkerExe = options.linker() == null ? (toolset.isEmpty() ? "link.exe" : "lld-link.exe") : options.linker();
+            link.add(resolveWindowsExecutable(linkerExe, msvcEnv));
             link.addAll(List.of("/NOLOGO", "/DLL", "/MACHINE:" + (arch.equals("arm64") ? "ARM64" : "X64"), "/OUT:" + output));
+            if (isDebug) link.add("/DEBUG");
             objects.forEach(object -> link.add(object.toString()));
             link.add(nodeLibrary.toString());
             link.addAll(List.of("kernel32.lib", "user32.lib", "gdi32.lib", "winspool.lib", "comdlg32.lib", "advapi32.lib",
@@ -476,6 +589,9 @@ public final class NodeFfiBuilder {
             link.add(options.linker() == null ? cxx : options.linker());
             link.addAll(mac ? List.of("-bundle", "-undefined", "dynamic_lookup", "-arch", arch.equals("arm64") ? "arm64" : "x86_64")
                     : List.of("-shared", "-pthread"));
+            if (!isDebug) {
+                link.add(mac ? "-Wl,-x" : "-Wl,--strip-debug");
+            }
             if (mac) addMacFlags(link, xcode, true, true);
             objects.forEach(object -> link.add(object.toString()));
             link.addAll(List.of("-o", output.toString()));
@@ -495,7 +611,7 @@ public final class NodeFfiBuilder {
                 link.add(literal(library));
             }
         }
-        execute(link, addon, temporary);
+        execute(link, addon, temporary, msvcEnv);
         if (!Files.isRegularFile(output) || Files.size(output) == 0) {
             throw new IOException("Native compiler did not produce " + output);
         }
@@ -814,11 +930,23 @@ public final class NodeFfiBuilder {
     ///   nonzero
     /// @throws InterruptedException if waiting is interrupted
     private static String execute(List<String> command, Path directory, Path temporary) throws IOException, InterruptedException {
+        return execute(command, directory, temporary, Map.of());
+    }
+
+    private static String execute(List<String> command, Path directory, Path temporary, Map<String, String> extraEnv)
+            throws IOException, InterruptedException {
         Path log = Files.createTempFile(temporary, "native-command-", ".log");
         Process process = null;
         try {
             ProcessBuilder builder = new ProcessBuilder(command).directory(directory.toFile()).redirectErrorStream(true).redirectOutput(log.toFile());
-            builder.environment().putAll(Map.of("TMPDIR", temporary.toString(), "TMP", temporary.toString(), "TEMP", temporary.toString()));
+            if (!extraEnv.isEmpty()) {
+                builder.environment().putAll(extraEnv);
+            }
+            builder.environment().putAll(Map.of(
+                    "TMPDIR", temporary.toString(),
+                    "TMP", temporary.toString(),
+                    "TEMP", temporary.toString(),
+                    "VSCMD_SKIP_SENDTELEMETRY", "1"));
             process = builder.start();
             process.getOutputStream().close();
             boolean finished = process.waitFor(5, TimeUnit.MINUTES);
@@ -838,8 +966,110 @@ public final class NodeFfiBuilder {
                 process.descendants().forEach(ProcessHandle::destroyForcibly);
                 process.destroyForcibly();
             }
-            Files.deleteIfExists(log);
+            try {
+                deleteScratchPath(log);
+            } catch (IOException ignored) {
+                log.toFile().deleteOnExit();
+            }
         }
+    }
+
+    private static Map<String, String> resolveWindowsMsvcEnvironment(String arch, Path directory, Path temporary)
+            throws IOException, InterruptedException {
+        String existingInclude = System.getenv("INCLUDE");
+        if (findOnPath("cl.exe", System.getenv("PATH")) != null && existingInclude != null && !existingInclude.isBlank()) {
+            return Map.of();
+        }
+        Path vswhere = null;
+        List<String> roots = new ArrayList<>();
+        String pf86 = System.getenv("ProgramFiles(x86)");
+        String pf = System.getenv("ProgramFiles");
+        if (pf86 != null && !pf86.isBlank()) roots.add(pf86);
+        if (pf != null && !pf.isBlank()) roots.add(pf);
+        roots.add("C:\\Program Files (x86)");
+        roots.add("C:\\Program Files");
+        for (String root : roots) {
+            Path candidate = Path.of(root, "Microsoft Visual Studio", "Installer", "vswhere.exe");
+            if (Files.isRegularFile(candidate)) {
+                vswhere = candidate;
+                break;
+            }
+        }
+        if (vswhere == null) {
+            return Map.of();
+        }
+        String installPath = execute(
+                List.of(vswhere.toString(), "-latest", "-products", "*", "-requires", "Microsoft.VisualStudio.Component.VC.Tools.x86.x64", "-property", "installationPath"),
+                directory, temporary, Map.of()).strip();
+        if (installPath.isEmpty()) {
+            return Map.of();
+        }
+        Path vcvarsall = Path.of(installPath, "VC", "Auxiliary", "Build", "vcvarsall.bat");
+        if (!Files.isRegularFile(vcvarsall)) {
+            return Map.of();
+        }
+        Path script = Files.createTempFile(temporary, "msvc-env-", ".bat");
+        try {
+            Files.writeString(script,
+                    "@echo off\r\nset \"VSCMD_SKIP_SENDTELEMETRY=1\"\r\ncall \"%~1\" %~2 >nul 2>&1\r\nif errorlevel 1 exit /b %errorlevel%\r\nset\r\n",
+                    StandardCharsets.UTF_8);
+            String envDump = execute(
+                    List.of("cmd.exe", "/d", "/c", script.toString(), vcvarsall.toString(), arch.equals("arm64") ? "arm64" : "x64"),
+                    directory, temporary, Map.of());
+            Map<String, String> env = new LinkedHashMap<>();
+            for (String line : envDump.split("\\R")) {
+                int eq = line.indexOf('=');
+                if (eq > 0) {
+                    env.put(line.substring(0, eq), line.substring(eq + 1));
+                }
+            }
+            return env;
+        } finally {
+            try {
+                deleteScratchPath(script);
+            } catch (IOException ignored) {
+                script.toFile().deleteOnExit();
+            }
+        }
+    }
+
+    private static String resolveWindowsExecutable(String command, Map<String, String> extraEnv) {
+        if (command.contains("/") || command.contains("\\")) {
+            return command;
+        }
+        String pathValue = null;
+        for (Map.Entry<String, String> entry : extraEnv.entrySet()) {
+            if (entry.getKey().equalsIgnoreCase("PATH")) {
+                pathValue = entry.getValue();
+                break;
+            }
+        }
+        if (pathValue == null || pathValue.isBlank()) {
+            pathValue = System.getenv("PATH");
+        }
+        Path found = findOnPath(command, pathValue);
+        return found != null ? found.toAbsolutePath().toString() : command;
+    }
+
+    private static Path findOnPath(String exeName, String pathValue) {
+        if (pathValue == null || pathValue.isBlank()) {
+            return null;
+        }
+        for (String rawDir : pathValue.split(Pattern.quote(File.pathSeparator))) {
+            String dir = rawDir.replace("\"", "").trim();
+            if (dir.isEmpty()) {
+                continue;
+            }
+            try {
+                Path candidate = Path.of(dir, exeName);
+                if (Files.isRegularFile(candidate)) {
+                    return candidate;
+                }
+            } catch (RuntimeException ignored) {
+                // Skip malformed PATH entries on host environment.
+            }
+        }
+        return null;
     }
 
     /// Parses named options without touching paths or launching tools.
@@ -849,12 +1079,17 @@ public final class NodeFfiBuilder {
     /// command lines. Later stages check path ownership and installed tool versions.
     private static Options parse(String[] arguments) {
         Map<String, String> values = new LinkedHashMap<>();
-        Set<String> allowed = Set.of("--project-dir", "--addon-dir", "--build-dir", "--node", "--node-version", "--headers-dir", "--cc", "--cxx", "--linker");
+        Set<String> allowed = Set.of("--project-dir", "--addon-dir", "--build-dir", "--node", "--node-version", "--headers-dir", "--cc", "--cxx", "--linker", "--configuration");
         boolean offline = false;
+        boolean debugFlag = false;
         for (int index = 0; index < arguments.length; index++) {
             String argument = arguments[index];
             if (argument.equals("--offline")) {
                 offline = true;
+                continue;
+            }
+            if (argument.equals("--debug")) {
+                debugFlag = true;
                 continue;
             }
             if (!allowed.contains(argument) || index + 1 == arguments.length || values.put(argument, arguments[++index]) != null) {
@@ -864,11 +1099,17 @@ public final class NodeFfiBuilder {
         for (String required : List.of("--project-dir", "--addon-dir", "--build-dir")) {
             if (!values.containsKey(required)) throw new IllegalArgumentException("Missing " + required);
         }
+        String rawConfig = values.getOrDefault("--configuration", debugFlag ? "Debug" : "Release");
+        String configuration = switch (rawConfig.toLowerCase(Locale.ROOT)) {
+            case "debug" -> "Debug";
+            case "release" -> "Release";
+            default -> throw new IllegalArgumentException("Unsupported N-API configuration: " + rawConfig);
+        };
         Path project = Path.of(values.get("--project-dir")).toAbsolutePath().normalize();
         return new Options(project, Path.of(values.get("--addon-dir")).toAbsolutePath().normalize(),
                 Path.of(values.get("--build-dir")).toAbsolutePath().normalize(), values.getOrDefault("--node", "node"),
                 values.get("--node-version"), values.containsKey("--headers-dir") ? Path.of(values.get("--headers-dir")).toAbsolutePath().normalize() : null,
-                values.get("--cc"), values.get("--cxx"), values.get("--linker"), offline);
+                values.get("--cc"), values.get("--cxx"), values.get("--linker"), configuration, offline);
     }
 
     private static String exactVersion(String version) {
@@ -972,9 +1213,49 @@ public final class NodeFfiBuilder {
         }
     }
 
+    private static boolean isWindowsHost() {
+        return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
+    }
+
+    private static void deleteScratchPath(Path path) throws IOException {
+        if (path == null || !Files.exists(path)) {
+            return;
+        }
+        int attempts = isWindowsHost() ? 5 : 1;
+        IOException lastError = null;
+        for (int attempt = 0; attempt < attempts; attempt++) {
+            try {
+                Files.deleteIfExists(path);
+                return;
+            } catch (IOException exception) {
+                lastError = exception;
+                if (attempt + 1 < attempts) {
+                    try {
+                        Thread.sleep(50L);
+                    } catch (InterruptedException interrupted) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                }
+            }
+        }
+        if (isWindowsHost()) {
+            path.toFile().deleteOnExit();
+            return;
+        }
+        if (lastError != null) {
+            throw lastError;
+        }
+    }
+
     private static void deleteTree(Path directory) throws IOException {
+        if (!Files.exists(directory)) {
+            return;
+        }
         try (var entries = Files.walk(directory)) {
-            for (Path entry : entries.sorted(Comparator.reverseOrder()).toList()) Files.delete(entry);
+            for (Path entry : entries.sorted(Comparator.reverseOrder()).toList()) {
+                deleteScratchPath(entry);
+            }
         }
     }
 }

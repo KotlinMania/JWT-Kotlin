@@ -5,14 +5,18 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Matcher;
 import javax.inject.Inject;
+import javax.xml.parsers.DocumentBuilderFactory;
 import org.gradle.api.GradleException;
 import org.gradle.api.Project;
 import org.gradle.process.ExecOperations;
+import org.w3c.dom.Element;
 
 /**
  * Shared verification and Wasm/WASI test fixture helpers for KotlinMania KMP library modules.
@@ -113,6 +117,50 @@ public final class VerificationSupport {
         }
     }
 
+    public static void verifyJunitXmlReports(String taskPath, Set<File> reports) {
+        if (reports.isEmpty()) {
+            throw new GradleException("Missing runtime reports for " + taskPath);
+        }
+        int tests = 0;
+        try {
+            var factory = DocumentBuilderFactory.newInstance();
+            factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+            factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
+            factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+            factory.setXIncludeAware(false);
+            factory.setExpandEntityReferences(false);
+            var builder = factory.newDocumentBuilder();
+            for (File report : reports) {
+                Element suite = builder.parse(report).getDocumentElement();
+                int count = Integer.parseInt(suite.getAttribute("tests"));
+                if (suite.getElementsByTagName("testcase").getLength() != count) {
+                    throw new GradleException(
+                            taskPath + ": test count does not match the recorded cases in " + report.getName());
+                }
+                tests += count;
+                for (String attr : Arrays.asList("failures", "errors", "skipped")) {
+                    String val = suite.getAttribute(attr);
+                    int n = (val == null || val.isEmpty()) ? 0 : Integer.parseInt(val);
+                    if (n != 0) {
+                        throw new GradleException(taskPath + ": " + attr + " in " + report.getName());
+                    }
+                }
+                for (String elem : Arrays.asList("failure", "error", "skipped")) {
+                    if (suite.getElementsByTagName(elem).getLength() != 0) {
+                        throw new GradleException(taskPath + ": " + elem + " result in " + report.getName());
+                    }
+                }
+            }
+        } catch (GradleException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new GradleException("Failed to parse JUnit XML reports for " + taskPath, e);
+        }
+        if (tests <= 0) {
+            throw new GradleException("Required runtime ran no tests: " + taskPath);
+        }
+    }
+
     public static void patchWasmWasiTestPreopens(File driverDir, File hostRoot, List<String> preopens) {
         File[] candidates = driverDir.listFiles(file -> file.getName().endsWith("-test.mjs"));
         if (candidates == null || candidates.length != 1) {
@@ -140,6 +188,76 @@ public final class VerificationSupport {
             }
         } catch (IOException e) {
             throw new GradleException("Failed to patch wasmWasi test driver " + driver, e);
+        }
+    }
+
+    public static void patchWasmWasiTestFfiImports(
+            File driverDir, File wasmNodeModulesDir, File workspaceRootDir) {
+        File[] candidates = driverDir.listFiles(file -> file.getName().endsWith("-test.mjs"));
+        if (candidates == null || candidates.length != 1) {
+            return;
+        }
+        File driver = candidates[0];
+        String nodeModulesEscaped = wasmNodeModulesDir.getAbsolutePath()
+                .replace("\\", "\\\\")
+                .replace("'", "\\'");
+        String workspaceEscaped = workspaceRootDir.getAbsolutePath()
+                .replace("\\", "\\\\")
+                .replace("'", "\\'");
+        String target = "const wasmInstance = new WebAssembly.Instance(wasmModule, wasi.getImportObject());";
+        String replacement = "const __kmBindWasmWasiImports = async (mod, baseImports) => {\n"
+                + "    const { createRequire } = await import('node:module');\n"
+                + "    const path = await import('node:path');\n"
+                + "    const wasmNodeModules = '" + nodeModulesEscaped + "';\n"
+                + "    const workspaceRoot = '" + workspaceEscaped + "';\n"
+                + "    const req = createRequire(path.join(wasmNodeModules, '_km_resolver.cjs'));\n"
+                + "    const addons = new Map();\n"
+                + "    const loadAddon = (modName) => {\n"
+                + "        if (addons.has(modName)) return addons.get(modName);\n"
+                + "        let addon = null;\n"
+                + "        try {\n"
+                + "            addon = req(`@kotlinmania/${modName}-native-bindings`);\n"
+                + "        } catch (_) {\n"
+                + "            const candidates = [\n"
+                + "                path.join(workspaceRoot, `${modName}-kotlin`, 'src', 'js', `node-${modName}`, 'dist', 'index.js'),\n"
+                + "                path.join(workspaceRoot, modName === 'windowssys' ? 'windows-sys-kotlin' : `${modName}-kotlin`, 'src', 'js', `node-${modName}`, 'dist', 'index.js'),\n"
+                + "            ];\n"
+                + "            for (const cand of candidates) {\n"
+                + "                if (fs.existsSync(cand)) {\n"
+                + "                    try { addon = req(cand); break; } catch (_) {}\n"
+                + "                }\n"
+                + "            }\n"
+                + "        }\n"
+                + "        addons.set(modName, addon);\n"
+                + "        return addon;\n"
+                + "    };\n"
+                + "    for (const imp of WebAssembly.Module.imports(mod)) {\n"
+                + "        if (imp.kind !== 'function' || (baseImports[imp.module] && baseImports[imp.module][imp.name])) continue;\n"
+                + "        if (!baseImports[imp.module]) baseImports[imp.module] = {};\n"
+                + "        const addon = loadAddon(imp.module);\n"
+                + "        const fn = addon ? addon[imp.name] : null;\n"
+                + "        if (typeof fn === 'function') {\n"
+                + "            baseImports[imp.module][imp.name] = (...args) => {\n"
+                + "                const res = fn(...args.map(a => typeof a === 'bigint' ? a.toString() : a));\n"
+                + "                return typeof res === 'string' ? BigInt(res) : res;\n"
+                + "            };\n"
+                + "        } else {\n"
+                + "            baseImports[imp.module][imp.name] = () => {\n"
+                + "                throw new Error(`Unresolved WasmImport ${imp.module}.${imp.name}`);\n"
+                + "            };\n"
+                + "        }\n"
+                + "    }\n"
+                + "    return baseImports;\n"
+                + "};\n"
+                + "const wasmInstance = new WebAssembly.Instance(wasmModule, await __kmBindWasmWasiImports(wasmModule, wasi.getImportObject()));";
+        try {
+            String text = Files.readString(driver.toPath(), StandardCharsets.UTF_8);
+            if (!text.contains("__kmBindWasmWasiImports") && text.contains(target)) {
+                String patched = text.replace(target, replacement);
+                Files.writeString(driver.toPath(), patched, StandardCharsets.UTF_8);
+            }
+        } catch (IOException e) {
+            throw new GradleException("Failed to patch wasmWasi FFI imports in " + driver, e);
         }
     }
 

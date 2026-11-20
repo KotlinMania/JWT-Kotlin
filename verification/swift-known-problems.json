@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "recipe_version": "2026-10-20.strict-swift-scan.v1",
+  "rules": {
+    "SWIFT001": {
+      "severity": "error",
+      "title": "Warnings-as-errors override",
+      "recipe": "SWIFT.md#known-upstream-gaps",
+      "action": "Keep Kotlin generated bridges and Swift dependencies/tests strict; repair the producer or source API."
+    },
+    "SWIFT002": {
+      "severity": "error",
+      "title": "Missing or weaker explicit Swift 6 mode",
+      "recipe": "SWIFT.md#swift-language-mode-qualification-and-enum-follow-up-preparation",
+      "action": "Review authored Swift 6 versus generated Swift 5 package policy first. For an authored package, invoke the standalone Swift6ManifestEnforcer with an explicit manifest and receipt; verify actual frontend flags."
+    },
+    "SWIFT003": {
+      "severity": "error",
+      "title": "Generated declaration rewrite or deletion",
+      "recipe": "SWIFT.md#direct-export-contracts-and-generated-evidence",
+      "action": "Remove generated API/body rewriting. Repair the actual source/producer and regenerate, preserving declarations."
+    },
+    "SWIFT004": {
+      "severity": "review",
+      "title": "Implementation-only generated import",
+      "recipe": "SWIFT.md#swift-language-mode-qualification-and-enum-follow-up-preparation",
+      "action": "Inspect strict frontend diagnostics and library evolution settings. Do not blindly rewrite generated imports."
+    },
+    "SWIFT005": {
+      "severity": "review",
+      "title": "Known generated KotlinError storage shape",
+      "recipe": "SWIFT.md#bounded-cancellation-validation-expected-negative-and-pointer-contract-failure",
+      "action": "Check Swift 6 Sendable diagnostics for KotlinBase storage; isolated runtime candidates are not verified product fixes."
+    },
+    "SWIFT006": {
+      "severity": "review",
+      "title": "Known generated bridge warning shape",
+      "recipe": "SWIFT.md#known-upstream-gaps",
+      "action": "Use the documented concrete API/nominal callback recipes; regenerate and strictly compile. A pattern match is not a compiler verdict."
+    },
+    "SWIFT007": {
+      "severity": "error",
+      "title": "Unverified toolchain or diagnostic bypass",
+      "recipe": "SWIFT.md#bounded-cancellation-validation-expected-negative-and-pointer-contract-failure",
+      "action": "Keep isolated enum/cancellation/runtime candidates gated; no patched exporter adoption or warning suppression through sync."
+    },
+    "SWIFT008": {
+      "severity": "error",
+      "title": "Placeholder Swift consumer assertion",
+      "recipe": "SWIFT.md#direct-export-contracts-and-generated-evidence",
+      "action": "Replace unconditional assertions with actual project API behavior tests before release acceptance."
+    }
+  },
+  "candidate_policy": {
+    "enum": "unverified for product integration; preserve immutable isolated results",
+    "KotlinError/cancellation": "unverified complete runtime repair; no fleet adoption",
+    "source_scan": "does not establish compiler/runtime acceptance",
+    "verified_defaults": "explicit Swift6 and warnings-as-errors policy; template compiler/runtime acceptance remains separate"
+  },
+  "acceptance_contract": [
+    "Fresh exact source and generated Swift/Kotlin bridge file hashes",
+    "Actual Swift6/warnings-as-errors frontend command evidence for every generated Swift dependency module and consumer",
+    "Actual named consumer tests, no failure/error/skip; no placeholder assertions",
+    "Exact toolchain file hashes; source scan findings remain distinct from compiler diagnostics"
+  ]
+}
