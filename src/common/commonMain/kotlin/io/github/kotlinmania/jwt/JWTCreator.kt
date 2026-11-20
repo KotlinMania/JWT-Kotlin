@@ -53,20 +53,27 @@ class JWTCreator private constructor(
 
             is Boolean -> Value.Bool(value)
 
-            is Byte, is Short, is Int, is Long ->
-                Value.Number(JsonNumber.fromI64((value as Number).toLong()))
+            is Long -> Value.Number(JsonNumber.fromI64(value))
 
-            is Float, is Double ->
-                Value.Number(
-                    JsonNumber.fromF64((value as Number).toDouble())
-                        ?: throw IllegalArgumentException("Non-finite floating-point value: $value"),
-                )
-
-            is Number ->
-                Value.Number(
-                    JsonNumber.fromF64(value.toDouble())
-                        ?: throw IllegalArgumentException("Non-finite number value: $value"),
-                )
+            is Number -> {
+                val doubleValue = value.toDouble()
+                if (!doubleValue.isFinite()) {
+                    throw IllegalArgumentException("Non-finite number value: $value")
+                }
+                val isExactSafeInt =
+                    doubleValue >= -MAX_SAFE_JSON_INT &&
+                        doubleValue <= MAX_SAFE_JSON_INT &&
+                        doubleValue == doubleValue.toLong().toDouble() &&
+                        (doubleValue != 0.0 || 1.0 / doubleValue > 0.0)
+                if (isExactSafeInt) {
+                    Value.Number(JsonNumber.fromI64(doubleValue.toLong()))
+                } else {
+                    Value.Number(
+                        JsonNumber.fromF64(doubleValue)
+                            ?: throw IllegalArgumentException("Non-finite floating-point value: $value"),
+                    )
+                }
+            }
 
             is Instant -> Value.Number(JsonNumber.fromI64(value.epochSeconds))
 
@@ -466,6 +473,8 @@ class JWTCreator private constructor(
     }
 
     companion object {
+        private const val MAX_SAFE_JSON_INT = 9_007_199_254_740_991.0
+
         /**
          * Initialize a JWTCreator instance.
          *
