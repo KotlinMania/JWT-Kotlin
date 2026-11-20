@@ -1,0 +1,7 @@
+{
+  "name": "kotlin-js-store-wasm",
+  "private": true,
+  "dependencies": {
+    "@js-joda/core": "6.3.0"
+  }
+}
