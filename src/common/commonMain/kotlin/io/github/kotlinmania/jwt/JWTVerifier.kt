@@ -55,8 +55,8 @@ class JWTVerifier internal constructor(
             // Algorithm check is implicit in constructor
         }
 
-        override fun withIssuer(vararg issuer: String?): Verification {
-            val value = issuer.filterNotNull()
+        override fun withIssuer(vararg issuer: String): Verification {
+            val value = issuer.toList()
             val check = { claim: Claim, _: DecodedJWT ->
                 verifyNull(claim, value.ifEmpty { null }) || (value.isNotEmpty() && value.contains(claim.asString()))
             }
@@ -82,8 +82,8 @@ class JWTVerifier internal constructor(
             return this
         }
 
-        override fun withAudience(vararg audience: String?): Verification {
-            val value = audience.filterNotNull()
+        override fun withAudience(vararg audience: String): Verification {
+            val value = audience.toList()
             addCheck(RegisteredClaims.AUDIENCE) { claim, jwt ->
                 if (verifyNull(claim, value.ifEmpty { null })) return@addCheck true
 
@@ -99,8 +99,8 @@ class JWTVerifier internal constructor(
             return this
         }
 
-        override fun withAnyOfAudience(vararg audience: String?): Verification {
-            val value = audience.filterNotNull()
+        override fun withAnyOfAudience(vararg audience: String): Verification {
+            val value = audience.toList()
             addCheck(RegisteredClaims.AUDIENCE) { claim, jwt ->
                 if (verifyNull(claim, value.ifEmpty { null })) return@addCheck true
 
@@ -227,9 +227,9 @@ class JWTVerifier internal constructor(
             return this
         }
 
-        override fun withArrayClaim(name: String?, vararg items: String?): Verification {
+        override fun withArrayClaim(name: String?, vararg items: String): Verification {
             requireNotNull(name)
-            val nonNullItems = items.filterNotNull()
+            val nonNullItems = items.toList()
             addCheck(name) { claim, _ ->
                 verifyNull(claim, nonNullItems.ifEmpty { null }) || assertValidCollectionClaim(claim, nonNullItems)
             }

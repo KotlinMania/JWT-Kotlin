@@ -18,7 +18,8 @@ interface Verification {
      * @param issuer the required Issuer value.
      * @return this same Verification instance.
      */
-    fun withIssuer(issuer: String?): Verification = withIssuer(*arrayOf<String?>(issuer))
+    fun withIssuer(issuer: String?): Verification =
+        if (issuer == null) withIssuer() else withIssuer(*arrayOf(issuer))
 
     /**
      * Verifies whether the JWT contains an Issuer ("iss") claim that contains all the values provided.
@@ -27,7 +28,7 @@ interface Verification {
      * @param issuer the required Issuer value. If multiple values are given, the claim must at least match one of them
      * @return this same Verification instance.
      */
-    fun withIssuer(vararg issuer: String?): Verification
+    fun withIssuer(vararg issuer: String): Verification
 
     /**
      * Verifies whether the JWT contains a Subject ("sub") claim that equals to the value provided.
@@ -45,7 +46,7 @@ interface Verification {
      * @param audience the required Audience value
      * @return this same Verification instance.
      */
-    fun withAudience(vararg audience: String?): Verification
+    fun withAudience(vararg audience: String): Verification
 
     /**
      * Verifies whether the JWT contains an Audience ("aud") claim contain at least one of the specified audiences.
@@ -54,7 +55,7 @@ interface Verification {
      * @param audience the required Audience value for which the "aud" claim must contain at least one value.
      * @return this same Verification instance.
      */
-    fun withAnyOfAudience(vararg audience: String?): Verification
+    fun withAnyOfAudience(vararg audience: String): Verification
 
     /**
      * Define the default window in seconds in which the Not Before, Issued At and Expires At Claims
@@ -223,7 +224,7 @@ interface Verification {
      * @throws IllegalArgumentException if the name is `null`.
      */
     @Throws(IllegalArgumentException::class)
-    fun withArrayClaim(name: String?, vararg items: String?): Verification
+    fun withArrayClaim(name: String?, vararg items: String): Verification
 
     /**
      * Verifies whether the claim contain at least the given Integer items.
