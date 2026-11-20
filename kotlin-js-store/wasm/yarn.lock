@@ -36,7 +36,7 @@
     "@jridgewell/resolve-uri" "^3.1.0"
     "@jridgewell/sourcemap-codec" "^1.4.14"
 
-"@js-joda/core@6.3.0":
+"@js-joda/core@3.2.0", "@js-joda/core@6.3.0":
   version "6.3.0"
   resolved "https://registry.yarnpkg.com/@js-joda/core/-/core-6.3.0.tgz#9bc47b9b3cbdcc953c444f730e764c8d7a8f5b87"
   integrity sha512-mdmjc6lJkTCORsHlMxBT9XM1yLqgtsNZmv/Hwme2v/HIb15D2XcmklZKTnynqBgsSizA9SkFvzpuksfIXhDV/w==
