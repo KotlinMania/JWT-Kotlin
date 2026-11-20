@@ -1,0 +1,4 @@
+// Applied to KGP's Xcode build of every generated Swift dependency module.
+SWIFT_VERSION = 5
+SWIFT_TREAT_WARNINGS_AS_ERRORS = YES
+GCC_TREAT_WARNINGS_AS_ERRORS = YES

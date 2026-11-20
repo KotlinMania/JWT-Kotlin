@@ -1,3 +1,5 @@
+> **Current storage instruction (2026-10-26):** The workspace-root `AGENTS.md` has been removed; do not recreate it. Keep source development in its owning repository and shared automation in the existing workspace `tools/` directory. Do not create `automation-artifacts/` or use `/tmp` or `/private/tmp` for storage. Remove temporary copies after use. Historical artifact paths below are provenance only and are not instructions to recreate those folders.
+
 # Kotlinmania — workspace agent guide
 
 This is the single sharp guide for agents (Claude, Codex, anyone else) doing
@@ -173,9 +175,10 @@ as the default next action when infra is clean.
   `java.*` / `javax.*` imports, no JVM-only or third-party Java artifacts
   (okio, Guava, Bouncy Castle, Jackson, ...). The 200+ Rust ports under
   `kotlinmania/` are the replacement for the Java ecosystem: use them.
-- **Workspace artifacts go under**
-  `automation-artifacts/` at the workspace root. No
-  `/tmp` scratch (§1).
+- **Keep source development inside its owning repository.** Shared automation
+  belongs in the existing workspace `tools/` directory. Build logs and temporary
+  outputs stay inside the focused repository and are cleaned up after use.
+  Never use `automation-artifacts/`, `/tmp`, or `/private/tmp` for storage.
 
 The yarn-resolution security block, the Android SDK installer pattern,
 the build-gate task list, the canonical Swift Export rollout recipe, the
@@ -260,10 +263,11 @@ These are non-negotiable. Violating any of them requires immediate repair.
 - **No worktrees.** The global pre-commit hook at
   `~/.config/git/hooks/pre-commit` refuses commits from linked worktrees.
   Do not bypass with `--no-verify`. Work in the repo's main checkout.
-- **No `/tmp` scratch.** Reports, logs, helper outputs go under the repo's
-  own `tmp/` or under
-  `automation-artifacts/` at the workspace root. Future agents
-  need the raw data, not summaries.
+- **No shared scratch storage.** Keep source changes in the owning repository
+  and shared automation in the existing workspace `tools/` directory. Keep
+  necessary logs and test outputs inside the focused repository; remove
+  temporary copies after use. Never store work in `automation-artifacts/`,
+  `/tmp`, or `/private/tmp`; those locations are routinely deleted.
 - **Force-push requires explicit confirmation.** Codex `default.rules`
   marks `git push --force`, `--force-with-lease`, and `-f` as `ask`. Do
   not assume a generic "go ahead" covers it — the approval has to name
@@ -649,7 +653,7 @@ For each `tmp/**/tests/*.rs`, `tmp/**/benches/*.rs`, and `#[cfg(test)] mod
 tests { … }` block:
 
 - **If the test exercises behavior the Kotlin port can faithfully match,
-  port it** to `src/commonTest/.../<File>Test.kt` (or per-target test
+  port it** to `src/common/commonTest/.../<File>Test.kt` (or per-target test
   source where commonTest can't express it). Use the upstream Rust file's
   organization; preserve test names translated to camelCase.
 - **If the test depends on a Rust-specific semantic the Kotlin
@@ -669,7 +673,7 @@ schemars-kotlin / itertools-kotlin / kasuari-kotlin):
 ```kotlin
 val swiftTest by tasks.registering(Exec::class) {
     dependsOn("embedSwiftExportForXcode")
-    workingDir = file("swift-test-harness")
+    workingDir = file("src/swift/swift-test-harness")
     commandLine("swift", "test", "--package-path", ".")
     // Treat any non-zero exit as a build failure.
     isIgnoreExitValue = false
@@ -680,7 +684,7 @@ tasks.named("test") {
 }
 ```
 
-If `swift-test-harness/` isn't present yet, the per-repo
+If `src/swift/swift-test-harness/` isn't present yet, the per-repo
 `SWIFT_EXPORT_ROLLOUT.md` documents how to scaffold it — it's part of the
 five canonical rollout changes.
 
@@ -920,7 +924,7 @@ Every session ends with a report that includes:
 
 - Workspace root: the folder holding every `*-kotlin/` repo
 - Per-repo: `<repo>-kotlin/`
-- Automation artifacts: `automation-artifacts/`
+- Shared automation: workspace `tools/`; temporary build outputs: inside the owning repository only.
 - Canonical Swift Export rollout:
   `automation-artifacts/swift-export-rollout/` (apply.sh, blast.sh,
   PR_BODY.md, SWIFT_EXPORT_ROLLOUT.md, triage docs)

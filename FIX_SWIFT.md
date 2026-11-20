@@ -87,7 +87,7 @@ Annotation hiding is not an API repair. If something is not API, make it
 
 ## The Five-Class Sweep
 
-Before every Swift release, inspect `src/commonMain/kotlin` for these
+Before every Swift release, inspect `src/common/commonMain/kotlin` for these
 public API hazards:
 
 1. Public mutable collections: `MutableList`, `MutableMap`, `MutableSet`

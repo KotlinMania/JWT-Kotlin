@@ -244,7 +244,7 @@ The `androidMain` source set's actuals are different in shape:
 - The actual is `external fun jniSymbolName(...)` declared on a Kotlin class
   marked `@JvmStatic`, with `System.loadLibrary("libc_kotlin_pthread")` (or
   the right shared library name).
-- The shared library is a C/C++ file under `src/androidMain/jni/` that calls
+- The shared library is a C/C++ file under `src/android/jvm/androidMain/jni/` that calls
   into bionic, with a `JNI_OnLoad` and a JNIEXPORT-tagged C entry point per
   exported Kotlin symbol.
 - The Android Gradle plugin's `externalNativeBuild { ndkBuild { ... } }` or

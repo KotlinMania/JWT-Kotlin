@@ -2,71 +2,187 @@ name: CI
 
 on:
   workflow_dispatch:
-# Least-privilege default for any inline job in this file. The reusable
-# workflows invoked below declare their own permissions; this top-level
-# block only applies to direct jobs in ci.yml itself.
+    inputs:
+      target:
+        description: "Target family to run (matches src/ hierarchy)"
+        required: false
+        default: "all"
+        type: choice
+        options:
+          - all
+          - jvm
+          - js
+          - wasm
+          - android
+          - android-native
+          - macos
+          - ios
+          - tvos
+          - watchos
+          - linux
+          - windows
+          - swift
+      platform:
+        description: "Platform runner / architecture slice (e.g. macosArm64 for jvm)"
+        required: false
+        default: "all"
+        type: choice
+        options:
+          - all
+          - macosArm64
+          - iosArm64
+          - iosSimulatorArm64
+          - tvosArm64
+          - tvosSimulatorArm64
+          - watchosDeviceArm64
+          - watchosSimulatorArm64
+          - androidNativeArm64
+          - androidNativeX64
+          - linuxX64
+          - linuxArm64
+          - mingwX64
+      phase:
+        description: "Execution phase (build, test, or both)"
+        required: false
+        default: "build-and-test"
+        type: choice
+        options:
+          - build-and-test
+          - build-only
+          - test-only
+
 permissions:
   contents: read
 
-# Orchestrator workflow. Each platform's build/test lives in its own reusable
-# workflow (.github/workflows/<platform>.yml with `on: workflow_call:`) and is
-# invoked here as a single job. Each invocation surfaces as an independent
-# line in the Checks UI — "Build (WASM)" shows up by itself, not as a step
-# inside a larger combined job. Re-runs and pass/fail attribution happen at
-# the platform granularity.
-#
-# Branch trigger is `main` only. The previous shape `[main, master]` would
-# fire CI on any branch literally named `master`, which is a workflow-content
-# trust escalation since GitHub Actions runs the workflow file from the
-# branch being pushed to.
-
-# Each `uses:` job below declares its own `permissions:` block. For a job
-# that calls a reusable workflow, the permissions value sets a CEILING on
-# what the called workflow can have — so `{}` (empty) would deny the
-# called workflow's own `contents: read` declaration and break checkout.
-# `contents: read` matches what each called workflow needs.
 jobs:
-  ios:
-    uses: ./.github/workflows/ios.yml
+  jvm:
+    if: >-
+      (inputs.target == '' || inputs.target == 'all' || inputs.target == 'jvm') &&
+      (inputs.platform == '' || inputs.platform == 'all' || inputs.platform == 'macosArm64' || inputs.platform == 'linuxX64' || inputs.platform == 'linuxArm64' || inputs.platform == 'mingwX64')
+    uses: ./.github/workflows/jvm.yml
+    with:
+      platform: ${{ inputs.platform || 'all' }}
+      phase: ${{ inputs.phase || 'build-and-test' }}
     permissions:
       contents: read
-  macos:
-    uses: ./.github/workflows/macos.yml
-    permissions:
-      contents: read
-  tvos:
-    uses: ./.github/workflows/tvos.yml
-    permissions:
-      contents: read
-  watchos:
-    uses: ./.github/workflows/watchos.yml
-    permissions:
-      contents: read
-  android:
-    uses: ./.github/workflows/android.yml
-    permissions:
-      contents: read
-  android-native:
-    uses: ./.github/workflows/android-native.yml
-    permissions:
-      contents: read
-  linux:
-    uses: ./.github/workflows/linux.yml
-    permissions:
-      contents: read
-  windows:
-    uses: ./.github/workflows/windows.yml
-    permissions:
-      contents: read
+
   js:
+    if: >-
+      (inputs.target == '' || inputs.target == 'all' || inputs.target == 'js') &&
+      (inputs.platform == '' || inputs.platform == 'all' || inputs.platform == 'macosArm64' || inputs.platform == 'linuxX64' || inputs.platform == 'linuxArm64' || inputs.platform == 'mingwX64')
     uses: ./.github/workflows/js.yml
+    with:
+      platform: ${{ inputs.platform || 'all' }}
+      phase: ${{ inputs.phase || 'build-and-test' }}
     permissions:
       contents: read
+
   wasm:
+    if: >-
+      (inputs.target == '' || inputs.target == 'all' || inputs.target == 'wasm') &&
+      (inputs.platform == '' || inputs.platform == 'all' || inputs.platform == 'macosArm64' || inputs.platform == 'linuxX64' || inputs.platform == 'linuxArm64' || inputs.platform == 'mingwX64')
     uses: ./.github/workflows/wasm.yml
+    with:
+      platform: ${{ inputs.platform || 'all' }}
+      phase: ${{ inputs.phase || 'build-and-test' }}
     permissions:
       contents: read
+
+  android:
+    if: >-
+      (inputs.target == '' || inputs.target == 'all' || inputs.target == 'android') &&
+      (inputs.platform == '' || inputs.platform == 'all' || inputs.platform == 'macosArm64' || inputs.platform == 'linuxX64')
+    uses: ./.github/workflows/android.yml
+    with:
+      platform: ${{ inputs.platform || 'all' }}
+      phase: ${{ inputs.phase || 'build-and-test' }}
+    permissions:
+      contents: read
+
+  android-native:
+    if: >-
+      (inputs.target == '' || inputs.target == 'all' || inputs.target == 'android-native') &&
+      (inputs.platform == '' || inputs.platform == 'all' || inputs.platform == 'androidNativeArm64' || inputs.platform == 'androidNativeX64')
+    uses: ./.github/workflows/android-native.yml
+    with:
+      platform: ${{ inputs.platform || 'all' }}
+      phase: ${{ inputs.phase || 'build-and-test' }}
+    permissions:
+      contents: read
+
+  macos:
+    if: >-
+      (inputs.target == '' || inputs.target == 'all' || inputs.target == 'macos') &&
+      (inputs.platform == '' || inputs.platform == 'all' || inputs.platform == 'macosArm64')
+    uses: ./.github/workflows/macos.yml
+    with:
+      platform: ${{ inputs.platform || 'all' }}
+      phase: ${{ inputs.phase || 'build-and-test' }}
+    permissions:
+      contents: read
+
+  ios:
+    if: >-
+      (inputs.target == '' || inputs.target == 'all' || inputs.target == 'ios') &&
+      (inputs.platform == '' || inputs.platform == 'all' || inputs.platform == 'iosArm64' || inputs.platform == 'iosSimulatorArm64')
+    uses: ./.github/workflows/ios.yml
+    with:
+      platform: ${{ inputs.platform || 'all' }}
+      phase: ${{ inputs.phase || 'build-and-test' }}
+    permissions:
+      contents: read
+
+  tvos:
+    if: >-
+      (inputs.target == '' || inputs.target == 'all' || inputs.target == 'tvos') &&
+      (inputs.platform == '' || inputs.platform == 'all' || inputs.platform == 'tvosArm64' || inputs.platform == 'tvosSimulatorArm64')
+    uses: ./.github/workflows/tvos.yml
+    with:
+      platform: ${{ inputs.platform || 'all' }}
+      phase: ${{ inputs.phase || 'build-and-test' }}
+    permissions:
+      contents: read
+
+  watchos:
+    if: >-
+      (inputs.target == '' || inputs.target == 'all' || inputs.target == 'watchos') &&
+      (inputs.platform == '' || inputs.platform == 'all' || inputs.platform == 'watchosDeviceArm64' || inputs.platform == 'watchosSimulatorArm64')
+    uses: ./.github/workflows/watchos.yml
+    with:
+      platform: ${{ inputs.platform || 'all' }}
+      phase: ${{ inputs.phase || 'build-and-test' }}
+    permissions:
+      contents: read
+
+  linux:
+    if: >-
+      (inputs.target == '' || inputs.target == 'all' || inputs.target == 'linux') &&
+      (inputs.platform == '' || inputs.platform == 'all' || inputs.platform == 'linuxX64' || inputs.platform == 'linuxArm64')
+    uses: ./.github/workflows/linux.yml
+    with:
+      platform: ${{ inputs.platform || 'all' }}
+      phase: ${{ inputs.phase || 'build-and-test' }}
+    permissions:
+      contents: read
+
+  windows:
+    if: >-
+      (inputs.target == '' || inputs.target == 'all' || inputs.target == 'windows') &&
+      (inputs.platform == '' || inputs.platform == 'all' || inputs.platform == 'mingwX64')
+    uses: ./.github/workflows/windows.yml
+    with:
+      platform: ${{ inputs.platform || 'all' }}
+      phase: ${{ inputs.phase || 'build-and-test' }}
+    permissions:
+      contents: read
+
   swift:
+    if: >-
+      (inputs.target == '' || inputs.target == 'all' || inputs.target == 'swift') &&
+      (inputs.platform == '' || inputs.platform == 'all' || inputs.platform == 'macosArm64')
     uses: ./.github/workflows/swift.yml
+    with:
+      platform: ${{ inputs.platform || 'all' }}
+      phase: ${{ inputs.phase || 'build-and-test' }}
     permissions:
       contents: read

@@ -25,6 +25,12 @@ high_priority_ports.md
 NEXT_ACTIONS.md
 port_lint_proposed_changes.md
 ast_distance_*.txt
+deep_symbol_inventory.txt
+direct-translation/
+*.log
+*.stderr
+*.o.tmp
+**/src/native/interop/cinterop/*.a
 .cache/
 *.lock
 kotlin-js-store/*
@@ -50,42 +56,36 @@ __pycache__/
 
 # Android SDK
 /.android-sdk/
+**/.android-sdk/
 local.properties
 
 # Swift Package Manager / Xcode workspace state.
-#
-# `swift-test-harness/` is a real SPM package that exercises the Kotlin
-# Swift Export pipeline against the artifacts produced by
-# `embedSwiftExportForXcode`. Its `Package.swift`, `Tests/`, and
-# per-package `.gitignore` (which ignores its own `.build/`) are all
-# tracked. The patterns below cover the Swift/Xcode workspace state
-# that this harness — or any future Swift Package added under the
-# repo — would also produce.
-#
-# Note: the staging directory the Kotlin Swift Export pipeline writes
-# to (`build/swift-test/lib*.a` + `.swiftmodule/` bundles when run with
-# the Xcode-style env vars) is already covered by `build/` above.
 .swiftpm/
+**/.build/
 DerivedData/
 *.xcuserstate
 *.xcworkspace/xcuserdata/
 *.xcodeproj/xcuserdata/
-local.properties
 
 # npm install output; JS dependencies come from yarn via the Kotlin Gradle plugin
 node_modules/
 package-lock.json
-!native/node-ffi/package-lock.json
+!**/native/node-*/package-lock.json
+!**/src/js/node-*/**/package-lock.json
 
-# Repo-specific
-*.log
-*.ctxt
-.mtj.tmp/
-*.nar
-*.zip
-*.tar.gz
-*.rar
-hs_err_pid*
-replay_pid*
-/build/
-.android-sdk/
+# Sensitive credentials and environment files
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.keystore
+credentials*.json
+
+# Java build helpers are source; buildSrc/build remains generated output.
+!buildSrc/
+!buildSrc/src/
+!buildSrc/src/**
+!buildSrc/build.gradle.kts
+!buildSrc/settings.gradle.kts

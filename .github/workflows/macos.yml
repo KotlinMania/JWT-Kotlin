@@ -2,13 +2,42 @@ name: Build (macOS)
 
 on:
   workflow_call:
+    inputs:
+      platform:
+        type: string
+        required: false
+        default: "all"
+      phase:
+        type: string
+        required: false
+        default: "build-and-test"
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: "macOS target slice"
+        required: false
+        default: "macosArm64"
+        type: choice
+        options:
+          - all
+          - macosArm64
+      phase:
+        description: "Execution phase"
+        required: false
+        default: "build-and-test"
+        type: choice
+        options:
+          - build-and-test
+          - build-only
+          - test-only
 
 permissions:
   contents: read
 
 jobs:
   build:
-    name: Build and Test (macOS)
+    name: Build and Test (macOS - macosArm64)
+    if: ${{ (inputs.platform || 'all') == 'all' || inputs.platform == 'macosArm64' }}
     runs-on: macos-latest
     permissions:
       contents: read
@@ -17,18 +46,26 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v6.0.1
+        uses: actions/setup-java@v6.1.0
         with:
           distribution: zulu
           java-version: '21'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6.3.0
+        uses: gradle/actions/setup-gradle@v6.4.0
 
-      - name: Build and test macOS targets
+      - name: Build macOS target and C wrapper (macosArm64)
+        if: ${{ (inputs.phase || 'build-and-test') != 'test-only' }}
         run: >
           ./gradlew
           compileKotlinMacosArm64
+          macosArm64TestBinaries
+          --no-configuration-cache
+
+      - name: Test macOS target (macosArm64)
+        if: ${{ (inputs.phase || 'build-and-test') != 'build-only' }}
+        run: >
+          ./gradlew
           macosArm64Test
           --no-configuration-cache
 
