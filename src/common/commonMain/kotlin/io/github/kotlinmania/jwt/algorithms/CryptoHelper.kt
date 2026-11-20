@@ -2,7 +2,6 @@ package io.github.kotlinmania.jwt.algorithms
 
 import io.github.kotlinmania.constanttimeeq.constantTimeEq
 import io.github.kotlinmania.hmac.Hmac
-import io.github.kotlinmania.hmac.registerHasher
 import io.github.kotlinmania.sha2.Sha256
 import io.github.kotlinmania.sha2.Sha384
 import io.github.kotlinmania.sha2.Sha512
@@ -102,49 +101,24 @@ internal class CryptoHelper {
 }
 
 /**
- * HMAC over the SHA-2 family. The digests are registered with the HMAC engine once, when this
- * object is first used.
+ * HMAC over the SHA-2 family powered by stateless `hmac-kotlin:0.1.3` `Hmac.fromDigest`.
  */
 private object Sha2Hmac {
-    init {
-        registerHasher(
-            type = Sha256::class,
-            blockSize = 64,
-            outputSize = 32,
-            algName = "Sha256",
-            create = { Sha256() },
-            update = { h, d -> h.update(d) },
-            finalize = { h -> h.finalize() },
-            reset = { h -> h.reset() },
-            digest = { d -> Sha256.digest(d) },
-        )
-        registerHasher(
-            type = Sha384::class,
-            blockSize = 128,
-            outputSize = 48,
-            algName = "Sha384",
-            create = { Sha384() },
-            update = { h, d -> h.update(d) },
-            finalize = { h -> h.finalize() },
-            reset = { h -> h.reset() },
-            digest = { d -> Sha384.digest(d) },
-        )
-        registerHasher(
-            type = Sha512::class,
-            blockSize = 128,
-            outputSize = 64,
-            algName = "Sha512",
-            create = { Sha512() },
-            update = { h, d -> h.update(d) },
-            finalize = { h -> h.finalize() },
-            reset = { h -> h.reset() },
-            digest = { d -> Sha512.digest(d) },
-        )
-    }
+    fun sha256(key: ByteArray, content: ByteArray): ByteArray =
+        Hmac
+            .fromDigest(blockSize = 64, outputSize = 32, algName = "Sha256", key = key, digest = Sha256::digest)
+            .chain(content)
+            .finalizeFixed()
 
-    fun sha256(key: ByteArray, content: ByteArray): ByteArray = Hmac.new<Sha256>(key).chain(content).finalizeFixed()
+    fun sha384(key: ByteArray, content: ByteArray): ByteArray =
+        Hmac
+            .fromDigest(blockSize = 128, outputSize = 48, algName = "Sha384", key = key, digest = Sha384::digest)
+            .chain(content)
+            .finalizeFixed()
 
-    fun sha384(key: ByteArray, content: ByteArray): ByteArray = Hmac.new<Sha384>(key).chain(content).finalizeFixed()
-
-    fun sha512(key: ByteArray, content: ByteArray): ByteArray = Hmac.new<Sha512>(key).chain(content).finalizeFixed()
+    fun sha512(key: ByteArray, content: ByteArray): ByteArray =
+        Hmac
+            .fromDigest(blockSize = 128, outputSize = 64, algName = "Sha512", key = key, digest = Sha512::digest)
+            .chain(content)
+            .finalizeFixed()
 }
