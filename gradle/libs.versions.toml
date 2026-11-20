@@ -1,5 +1,6 @@
 [versions]
 kotlin = "2.4.21"
+serdeKotlin = "0.1.12"
 serdeJson = "0.2.0"
 base64 = "0.1.3"
 constantTimeEq = "0.1.2"
@@ -24,6 +25,7 @@ kotlin-allopen = { id = "org.jetbrains.kotlin.plugin.allopen", version.ref = "ko
 
 [libraries]
 androidx-test-runner = { module = "androidx.test:runner", version.ref = "androidxTestRunner" }
+serde-kotlin = { module = "io.github.kotlinmania:serde-kotlin", version.ref = "serdeKotlin" }
 serde-json-kotlin = { module = "io.github.kotlinmania:serde-json-kotlin", version.ref = "serdeJson" }
 base64-kotlin = { module = "io.github.kotlinmania:base64-kotlin", version.ref = "base64" }
 constant-time-eq-kotlin = { module = "io.github.kotlinmania:constant-time-eq-kotlin", version.ref = "constantTimeEq" }
@@ -34,6 +36,7 @@ kotlinx-benchmark-runtime = { module = "org.jetbrains.kotlinx:kotlinx-benchmark-
 
 [bundles]
 jwt-commonMain = [
+  "serde-kotlin",
   "serde-json-kotlin",
   "base64-kotlin",
   "constant-time-eq-kotlin",
