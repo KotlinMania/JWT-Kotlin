@@ -6,13 +6,11 @@ import io.github.kotlinmania.base64.engine.generalpurpose.URL_SAFE_NO_PAD
 import io.github.kotlinmania.jwt.algorithms.Algorithm
 import io.github.kotlinmania.jwt.exceptions.JWTCreationException
 import io.github.kotlinmania.jwt.exceptions.SignatureGenerationException
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonNull
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.contentOrNull
+import io.github.kotlinmania.serdejson.JsonMap
+import io.github.kotlinmania.serdejson.JsonNumber
+import io.github.kotlinmania.serdejson.Value
+import io.github.kotlinmania.serdejson.fromStr
+import io.github.kotlinmania.serdejson.valueToStr
 import kotlin.time.Instant
 
 /**
@@ -32,72 +30,65 @@ class JWTCreator private constructor(
 
     init {
         try {
-            headerJson = mapToJson(headerClaims.orEmpty()).toString()
-            payloadJson = mapToJson(payloadClaims.orEmpty()).toString()
+            headerJson = valueToStr(mapToJson(headerClaims.orEmpty()))
+            payloadJson = valueToStr(mapToJson(payloadClaims.orEmpty()))
         } catch (e: Exception) {
             throw JWTCreationException("Some of the Claims couldn't be converted to a valid JSON format.", e)
         }
     }
 
-    private fun mapToJson(map: Map<String, Any?>): JsonObject {
-        val content = mutableMapOf<String, JsonElement>()
+    private fun mapToJson(map: Map<String, Any?>): Value.Object {
+        val content = JsonMap()
         for ((key, value) in map) {
-            content[key] = toJsonElement(value)
+            content.insert(key, toJsonValue(value))
         }
-        return JsonObject(content)
+        return Value.Object(content)
     }
 
-    private fun toJsonElement(value: Any?): JsonElement =
+    private fun toJsonValue(value: Any?): Value =
         when (value) {
-            null -> {
-                JsonNull
-            }
+            null -> Value.Null
 
-            is String -> {
-                JsonPrimitive(value)
-            }
+            is String -> Value.Str(value)
 
-            is Number -> {
-                JsonPrimitive(value)
-            }
+            is Boolean -> Value.Bool(value)
 
-            is Boolean -> {
-                JsonPrimitive(value)
-            }
+            is Byte, is Short, is Int, is Long ->
+                Value.Number(JsonNumber.fromI64((value as Number).toLong()))
 
-            is Instant -> {
-                JsonPrimitive(value.epochSeconds)
-            }
+            is Float, is Double ->
+                Value.Number(
+                    JsonNumber.fromF64((value as Number).toDouble())
+                        ?: throw IllegalArgumentException("Non-finite floating-point value: $value"),
+                )
 
-            is List<*> -> {
-                JsonArray(value.map { toJsonElement(it) })
-            }
+            is Number ->
+                Value.Number(
+                    JsonNumber.fromF64(value.toDouble())
+                        ?: throw IllegalArgumentException("Non-finite number value: $value"),
+                )
+
+            is Instant -> Value.Number(JsonNumber.fromI64(value.epochSeconds))
+
+            is List<*> -> Value.Array(value.map { toJsonValue(it) })
 
             is Map<*, *> -> {
-                val map = mutableMapOf<String, JsonElement>()
+                val map = JsonMap()
                 for ((k, v) in value) {
                     if (k is String) {
-                        map[k] = toJsonElement(v)
+                        map.insert(k, toJsonValue(v))
                     }
                 }
-                JsonObject(map)
+                Value.Object(map)
             }
 
-            is Array<*> -> {
-                JsonArray(value.map { toJsonElement(it) })
-            }
+            is Array<*> -> Value.Array(value.map { toJsonValue(it) })
 
-            is IntArray -> {
-                JsonArray(value.map { JsonPrimitive(it) })
-            }
+            is IntArray -> Value.Array(value.map { Value.Number(JsonNumber.fromI64(it.toLong())) })
 
-            is LongArray -> {
-                JsonArray(value.map { JsonPrimitive(it) })
-            }
+            is LongArray -> Value.Array(value.map { Value.Number(JsonNumber.fromI64(it)) })
 
-            else -> {
-                JsonPrimitive(value.toString())
-            }
+            else -> Value.Str(value.toString())
         }
 
     /**
@@ -150,16 +141,19 @@ class JWTCreator private constructor(
             }
 
             try {
-                val json = Json.parseToJsonElement(headerClaimsJson)
-                if (json is JsonObject) {
-                    // Convert JsonObject to Map
-                    val map =
-                        json.mapValues { entry ->
-                            when (val v = entry.value) {
-                                is JsonPrimitive -> v.contentOrNull
-                                else -> v.toString() // Simplification
+                val json = fromStr(headerClaimsJson).getOrThrow()
+                if (json is Value.Object) {
+                    val map = LinkedHashMap<String, Any?>()
+                    for ((k, v) in json.value) {
+                        map[k] =
+                            when (v) {
+                                is Value.Null -> null
+                                is Value.Str -> v.value
+                                is Value.Bool -> v.value
+                                is Value.Number -> v.asI64() ?: v.asF64()
+                                else -> valueToStr(v)
                             }
-                        }
+                    }
                     return withHeader(map)
                 }
                 throw IllegalArgumentException("The provided JSON is not a JSON object.")
